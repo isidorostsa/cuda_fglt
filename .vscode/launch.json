@@ -2,8 +2,8 @@
     "version": "2.0.0",
     "configurations": [
         {
-            "preLaunchTask": "expEnvLegCuDBG",
-            "name": "CUDA C++: Launch",
+            "preLaunchTask": "build",
+            "name": "CUDA C++: Debug",
             "type": "cuda-gdb",
             "request": "launch",
             "program": "${workspaceFolder}/bin_debug/fglt",

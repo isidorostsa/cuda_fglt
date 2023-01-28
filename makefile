@@ -68,7 +68,7 @@ run: ${PROGRAM_NAME}
 .PHONY: clean print
 
 clean:
-	rm -rf $(BIN_DIR)/* $(OBJ_DIR)/*
+	rm -rf $(BIN_DIR)/* $(OBJ_DIR)/* 
 
 print:
 	@echo EXEC_SRC: $(EXEC_SRC)

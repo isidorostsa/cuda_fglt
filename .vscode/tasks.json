@@ -10,20 +10,19 @@
     "options": {
         "cwd": "${workspaceRoot}"
     },
-	"args": [
-        "-c"
-    ],
     "tasks": [
         {
-            "label": "Build with make",
+            "label": "build",
             "type":"shell",
-            "command":"make BUILD_TYPE=debug",
+            "command":"make",
+            "args": ["BUILD_TYPE=debug"],
             "problemMatcher":"$nvcc",
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
         },
+        // MAKE THIS RUN TOO!!!
         {
             "label":"expEnvLegCuDBG",
             "type":"shell",

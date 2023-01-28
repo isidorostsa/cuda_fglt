@@ -6,6 +6,8 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#include <thrust/transform.h>
+
 #include <cstddef>
 
 #include "common/fileio.hpp"
@@ -82,6 +84,26 @@ std::ostream& operator<<(std::ostream& os, const thrust::host_vector<T>& vec)
     return os;
 }
 
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T>& vec)
+{
+    os << "|";
+    for (const T& el : vec) {
+        os << " " << el << " |";
+    } os << std::endl;
+    return os;
+}
+
+template<typename T>
+__global__ void elwiseMul(T* a, T* b, T* c, int n)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) {
+        c[i] = a[i] * b[i];
+    }
+}
+#include <vector>
+#include <algorithm>
 int main(int argc, char *argv[])
 {
     // HOST DATA
@@ -91,6 +113,46 @@ int main(int argc, char *argv[])
     std::cout << "A = " << std::endl;
     //printCSR(h_sA.positions.data(), h_sA.offsets.data(), h_sA_vals.data(), h_sA.n, h_sA.n, h_sA.n);
 
+    std::cout << "A positions: " << h_sA.positions.size() << std::endl;
+
+    // DEVICE DATA
+    int test_size = atoi(argv[1]);
+    thrust::device_vector<float> temp(test_size, 3.0f);
+    thrust::device_vector<float> tempres(temp.size());
+
+    // CUDA version:
+    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+    size_t blockSize = 256;
+    size_t numBlocks = (h_sA.nnz + blockSize - 1) / blockSize;
+    elwiseMul<<<numBlocks, blockSize>>>(temp.data().get(), temp.data().get(), tempres.data().get(), temp.size());
+    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
+
+    // thrust version:
+    t1 = std::chrono::high_resolution_clock::now();
+    thrust::transform(temp.begin(), temp.end(), temp.begin(), tempres.begin(), thrust::multiplies<float>());
+    t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
+   // std::cout << "A positions HADAMARD A positions: " << tempres << std::endl;
+
+   // std::vector version:
+    std::vector<float> temp2(test_size, 3.0f);
+    std::vector<float> tempres2(temp2.size());
+    t1 = std::chrono::high_resolution_clock::now();
+    std::transform(temp2.begin(), temp2.end(), temp2.begin(), tempres2.begin(), std::multiplies<float>());
+    t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
+
+    // manual version:
+    t1 = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < temp2.size(); i++) {
+        tempres2[i] = temp2[i] * temp2[i];
+    }
+    t2 = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
+
+
+    exit(0);
     int A_rows = h_sA.n;
     int A_cols = h_sA.n;
     int A_nnz = h_sA.nnz;
@@ -385,7 +447,8 @@ int main(int argc, char *argv[])
     h_had_vals.resize(had_nnz);
 
     std::cout << "A hadamard A2 = " << std::endl;
-    //printCSR(h_had_cols.data(), h_had_offs.data(), h_had_vals.data(), A2_rows, A2_cols, had_nnz);
+    printCSR(h_had_cols.data(), h_had_offs.data(), h_had_vals.data(), A2_rows, A2_cols, had_nnz);
+// DONE
 
     CHECK_CUSPARSE(cusparseDestroySpMat(A_CSR));
     CHECK_CUSPARSE(cusparseDestroySpMat(A2_CSR));
