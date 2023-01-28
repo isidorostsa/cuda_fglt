@@ -1,0 +1,9 @@
+bin/*
+bin_debug/*
+datasets/auto/auto.mtx
+obj/*
+obj/common/*
+obj_debug/*
+obj_debug/common/*
+.nv
+.vscode
