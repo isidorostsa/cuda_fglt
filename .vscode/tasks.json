@@ -1,0 +1,35 @@
+// Makefile
+// ${workspaceRoot} the path of the folder opened in VS Code
+// ${file} the current opened file
+// ${fileBasename} the current opened file's basename
+// ${fileDirname} the current opened file's dirname
+// ${fileExtname} the current opened file's extension
+// ${cwd} the task runner's current working directory on startup
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceRoot}"
+    },
+	"args": [
+        "-c"
+    ],
+    "tasks": [
+        {
+            "label": "Build with make",
+            "type":"shell",
+            "command":"make BUILD_TYPE=debug",
+            "problemMatcher":"$nvcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label":"expEnvLegCuDBG",
+            "type":"shell",
+            // if CUDBG_USE_LEGACY_DEBUGGER is not set, the debugger will not work
+            // print a warning message if CUDBG_USE_LEGACY_DEBUGGER is not set
+            "command":"if [ -z ${CUDBG_USE_LEGACY_DEBUGGER+x} ]; then echo 'CUDBG_USE_LEGACY_DEBUGGER is not set'; fi;",
+        }
+    ]
+}

@@ -19,8 +19,8 @@ ifeq ($(BUILD_TYPE), release)
 else ifeq ($(BUILD_TYPE), debug)
 	BIN_DIR := ${BIN_DIR}_debug
 	OBJ_DIR := ${OBJ_DIR}_debug
-	CFLAGS += -g -O0 -DDEBUG
-	LFLAGS += -g -O0 -DDEBUG
+	CFLAGS += -g -G -O0 -DDEBUG
+	LFLAGS += -g -G -O0 -DDEBUG
 endif
 
 # Initiate all variables needed for building

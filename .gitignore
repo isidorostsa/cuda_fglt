@@ -6,4 +6,4 @@ obj/common/*
 obj_debug/*
 obj_debug/common/*
 .nv
-.vscode
+include
