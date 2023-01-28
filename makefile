@@ -7,8 +7,8 @@ SRC_DIR := src
 PROGRAM_NAME := $(BIN_DIR)/fglt
 
 # Set the appropriate compile/link flags
-CFLAGS := -std=c++17
-LFLAGS := -std=c++17 -lcusparse_static -lculibos
+CFLAGS := -std=c++17 --compiler-options -Wall
+LFLAGS := -std=c++17 -lcusparse_static -lculibos --compiler-options -Wall
 
 BUILD_TYPE ?= release
 
@@ -39,31 +39,38 @@ COMMON_OBJ := $(patsubst $(SRC_DIR)/common/%.cpp, $(OBJ_DIR)/common/%.o, $(COMMO
 
 .SECONDARY: $(COMMON_OBJ) $(EXEC_OBJ) #Added this so that .o files aren't deleted
 
-DEPS := $(wildcard $(SRC_DIR)/common/*.hpp)
+DEPS := $(wildcard $(SRC_DIR)/common/*.hpp $(SRC_DIR)/common/*.cuh)
 
 # Actual build target
-do_build: $(EXEC_BIN)
+target: $(EXEC_BIN)
 
-# Build rules t
-
+# CUDA object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu $(DEPS)
 	@mkdir -p '$(@D)'
+	@echo COMPILING $< TO $@
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+# C++ object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	@mkdir -p '$(@D)'
+	@echo COMPILING $< TO $@
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+# Link object files to create executables
 $(EXEC_BIN): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(COMMON_OBJ)
 	@mkdir -p '$(@D)'
+	@echo LINKING $^ TO $@
 	$(CC) -o $@ $^ $(LFLAGS)
 
 run: ${PROGRAM_NAME}
 	./${PROGRAM_NAME} ${ARGS}
 
-.PHONY: clean
+.PHONY: clean print
+
 clean:
 	rm -rf $(BIN_DIR)/* $(OBJ_DIR)/*
+
+print:
 	@echo EXEC_SRC: $(EXEC_SRC)
 	@echo EXEC_OBJ: $(EXEC_OBJ)
 	@echo EXEC_BIN: $(EXEC_BIN)

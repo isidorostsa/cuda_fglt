@@ -3,9 +3,6 @@
 #include <fstream>
 
 #include <thrust/host_vector.h>
-
-#define LN; std::cout << __LINE__ << std::endl;
-
 #include "fileio.hpp"
 
 #pragma GCC diagnostic ignored "-Wformat-security"
@@ -59,7 +56,7 @@ Symm_Sparse_matrix loadFileToSymmSparse(const std::string filename) {
     thrust::host_vector<int> offsets(n+1, 0);
     thrust::host_vector<int> positions(nnz);
 
-    int i, j, throwaway;
+    int i, j;
     // lines may be of the form: i j or i j throwaway where throwaway can be any number of characters until a newline
     for(int ind = 0; ind < nnz; ++ind) {
         fscanf(fin, "%d %d", &i, &j);
