@@ -12,10 +12,21 @@
     },
     "tasks": [
         {
-            "label": "build",
+            "label": "build_debug",
             "type":"shell",
             "command":"make",
             "args": ["BUILD_TYPE=debug"],
+            "problemMatcher":"$nvcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "build",
+            "type":"shell",
+            "command":"make",
+            "args": ["BUILD_TYPE=release"],
             "problemMatcher":"$nvcc",
             "group": {
                 "kind": "build",

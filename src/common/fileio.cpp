@@ -65,7 +65,11 @@ Symm_Sparse_matrix loadFileToSymmSparse(const std::string filename) {
         positions[ind] = i;
         offsets[j+1]++;
         
-        while(fgetc(fin) != '\n') {};
+        // skip the rest of the line
+        // unless we are at the end of the file
+        if(ind < nnz-1) {
+            while(fgetc(fin) != '\n') {}
+        }
     }
 
     for(int i = 0; i < n; ++i) {

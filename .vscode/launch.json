@@ -2,12 +2,20 @@
     "version": "2.0.0",
     "configurations": [
         {
-            "preLaunchTask": "build",
-            "name": "CUDA C++: Debug",
+            "preLaunchTask": "build_debug",
+            "name": "CUDA C++: Debug FGLT",
             "type": "cuda-gdb",
             "request": "launch",
             "program": "${workspaceFolder}/bin_debug/fglt",
-            "args": "10"
+            "args": "4"
+        },
+        {
+            "preLaunchTask": "build_debug",
+            "name": "CUDA C++: Debug Test",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin_debug/test",
+            "args": "4"
         }
     ]
 }

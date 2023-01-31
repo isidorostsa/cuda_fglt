@@ -7,20 +7,19 @@ SRC_DIR := src
 PROGRAM_NAME := $(BIN_DIR)/fglt
 
 # Set the appropriate compile/link flags
-CFLAGS := -std=c++17 --compiler-options -Wall
-LFLAGS := -std=c++17 -lcusparse_static -lculibos --compiler-options -Wall
+CFLAGS := -std=c++17
+LFLAGS := -std=c++17 -lcusparse_static -lculibos 
+GENERAL_FLAGS := --compiler-options -Wall
 
 BUILD_TYPE ?= release
 
 ## Add flags based on BUILD_TYPE (release or debug)
 ifeq ($(BUILD_TYPE), release)
-	CFLAGS += -O3
-	LFLAGS += -O3
+	GENERAL_FLAGS := -O3 $(GENERAL_FLAGS)
 else ifeq ($(BUILD_TYPE), debug)
 	BIN_DIR := ${BIN_DIR}_debug
 	OBJ_DIR := ${OBJ_DIR}_debug
-	CFLAGS += -g -G -O0 -DDEBUG
-	LFLAGS += -g -G -O0 -DDEBUG
+	GENERAL_FLAGS :=  -g -G -O0 -DDEBUG $(GENERAL_FLAGS)
 endif
 
 # Initiate all variables needed for building
@@ -48,19 +47,19 @@ target: $(EXEC_BIN)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu $(DEPS)
 	@mkdir -p '$(@D)'
 	@echo COMPILING $< TO $@
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(GENERAL_FLAGS)
 
 # C++ object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(DEPS)
 	@mkdir -p '$(@D)'
 	@echo COMPILING $< TO $@
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(GENERAL_FLAGS)
 
 # Link object files to create executables
 $(EXEC_BIN): $(BIN_DIR)/%: $(OBJ_DIR)/%.o $(COMMON_OBJ)
 	@mkdir -p '$(@D)'
 	@echo LINKING $^ TO $@
-	$(CC) -o $@ $^ $(LFLAGS)
+	$(CC) -o $@ $^ $(LFLAGS) $(GENERAL_FLAGS)
 
 run: ${PROGRAM_NAME}
 	./${PROGRAM_NAME} ${ARGS}

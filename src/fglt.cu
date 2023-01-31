@@ -12,8 +12,7 @@
 
 #include "common/fileio.hpp"
 #include "common/sparse_funcs.hpp"
-
-#define ln std::cout << __LINE__ << std::endl;
+#include "common/printing.hpp"
 
 #define CHECK_CUDA(call)                                               \
     {                                                                  \
@@ -22,7 +21,7 @@
         {                                                              \
             printf("CUDA API failed at line %d with error: %s (%d)\n", \
                    __LINE__, cudaGetErrorString(status), status);      \
-            return EXIT_FAILURE;                                       \
+            exit(1);                                                   \
         }                                                              \
     }
 
@@ -37,63 +36,6 @@
         }                                                                                              \
     }
 
-float *csrToRowMajor(int *columnsCSR, int *offsetsCSR, float *valuesCSR, int rows, int cols, int nnz)
-{
-    float *rowMajor = new float[rows * cols];
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < cols; j++)
-        {
-            rowMajor[i * cols + j] = 0;
-        }
-    }
-
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = offsetsCSR[i]; j < offsetsCSR[i + 1]; j++)
-        {
-            rowMajor[i * cols + columnsCSR[j]] = valuesCSR[j];
-        }
-    }
-
-    return rowMajor;
-}
-
-void printCSR(int *columnsCSR, int *offsetsCSR, float *valuesCSR, int rows, int cols, int nnz)
-{
-    float *rowMajor = csrToRowMajor(columnsCSR, offsetsCSR, valuesCSR, rows, cols, nnz);
-
-    for (int i = 0; i < rows; i++)
-    {
-        for (int j = 0; j < cols; j++)
-        {
-            std::cout << std::setw(5) << rowMajor[i * cols + j] << " ";
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const thrust::host_vector<T>& vec)
-{
-    os << "|";
-    for (const T& el : vec) {
-        os << " " << el << " |";
-    } os << std::endl;
-    return os;
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T>& vec)
-{
-    os << "|";
-    for (const T& el : vec) {
-        os << " " << el << " |";
-    } os << std::endl;
-    return os;
-}
-
 template<typename T>
 __global__ void elwiseMul(T* a, T* b, T* c, int n)
 {
@@ -102,61 +44,64 @@ __global__ void elwiseMul(T* a, T* b, T* c, int n)
         c[i] = a[i] * b[i];
     }
 }
-#include <vector>
-#include <algorithm>
+
+#define BLOCK_SIZE 256
+template<typename T>
+__global__ void adjDif(T* in, T* out, int n){
+    __shared__ T temp[BLOCK_SIZE + 1];
+
+    int gindex = threadIdx.x + blockIdx.x * blockDim.x;
+    int lindex = threadIdx.x;
+
+    if(gindex < n){
+        // Load input into shared memory
+        temp[lindex] = in[gindex];
+        if(lindex == BLOCK_SIZE-1 || gindex == n-1){
+            temp[lindex+1] = in[gindex + 1];
+        }
+    }
+
+    __syncthreads();
+
+    // Compute the difference
+    if(gindex < n)
+        out[gindex] = temp[lindex + 1] - temp[lindex];
+}
+
+template<typename T = void>
+struct d3_trans
+{
+  typedef T first_argument_type;
+  typedef T second_argument_type;
+  typedef T result_type;
+  __thrust_exec_check_disable__
+  __host__ __device__
+  constexpr T operator()(const T &lhs, const T &rhs) const
+  {
+    return (lhs)*(lhs-1) - 2*rhs;
+  }
+};
+
 int main(int argc, char *argv[])
 {
+
     // HOST DATA
-    Symm_Sparse_matrix h_sA = loadFileToSymmSparse("/cuda_project/datasets/auto/auto.mtx");
+    Symm_Sparse_matrix h_sA = loadFileToSymmSparse("/cuda_project/datasets/test.mtx");
     thrust::host_vector<float> h_sA_vals(h_sA.nnz, 1.0f);
 
-    std::cout << "A = " << std::endl;
-    //printCSR(h_sA.positions.data(), h_sA.offsets.data(), h_sA_vals.data(), h_sA.n, h_sA.n, h_sA.n);
+    const int n = h_sA.n;
+    const int nnz = h_sA.nnz;
 
+    int A_rows = n;
+    int A_cols = n;
+    int A_nnz = nnz;
+
+    std::cout << "A = " << std::endl;
+    printCSR(h_sA.offsets, h_sA.positions, h_sA_vals, n, n, nnz);
+    std::cout << "A Sparsity: " << (100 * ( 1 - ((float)h_sA.nnz / (float)(n * n)))) << "%" << std::endl;
     std::cout << "A positions: " << h_sA.positions.size() << std::endl;
 
     // DEVICE DATA
-    int test_size = atoi(argv[1]);
-    thrust::device_vector<float> temp(test_size, 3.0f);
-    thrust::device_vector<float> tempres(temp.size());
-
-    // CUDA version:
-    std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
-    size_t blockSize = 256;
-    size_t numBlocks = (h_sA.nnz + blockSize - 1) / blockSize;
-    elwiseMul<<<numBlocks, blockSize>>>(temp.data().get(), temp.data().get(), tempres.data().get(), temp.size());
-    std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
-    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
-
-    // thrust version:
-    t1 = std::chrono::high_resolution_clock::now();
-    thrust::transform(temp.begin(), temp.end(), temp.begin(), tempres.begin(), thrust::multiplies<float>());
-    t2 = std::chrono::high_resolution_clock::now();
-    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
-   // std::cout << "A positions HADAMARD A positions: " << tempres << std::endl;
-
-   // std::vector version:
-    std::vector<float> temp2(test_size, 3.0f);
-    std::vector<float> tempres2(temp2.size());
-    t1 = std::chrono::high_resolution_clock::now();
-    std::transform(temp2.begin(), temp2.end(), temp2.begin(), tempres2.begin(), std::multiplies<float>());
-    t2 = std::chrono::high_resolution_clock::now();
-    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
-
-    // manual version:
-    t1 = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < temp2.size(); i++) {
-        tempres2[i] = temp2[i] * temp2[i];
-    }
-    t2 = std::chrono::high_resolution_clock::now();
-    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << std::endl;
-
-
-    exit(0);
-    int A_rows = h_sA.n;
-    int A_cols = h_sA.n;
-    int A_nnz = h_sA.nnz;
-
     const int64_t A2_rows = A_rows;
     const int64_t A2_cols = A_cols;
     int64_t A2_nnz = 0;
@@ -171,14 +116,10 @@ int main(int argc, char *argv[])
     thrust::device_vector<float> d_A2_vals;
 
     // CUSPARSE STBRTS HERE
-    const cusparseOperation_t opA = CUSPARSE_OPERATION_NON_TRANSPOSE;
-    const cusparseOperation_t opB = CUSPARSE_OPERATION_NON_TRANSPOSE;
     const cudaDataType computeType = CUDA_R_32F;
 
     cusparseHandle_t handle;
     CHECK_CUSPARSE(cusparseCreate(&handle))
-
-    //CHECK_CUSPARSE(cusparseLoggerSetMask(1 | 0 | 4 | 8 | 16))
 
 /*
 
@@ -199,7 +140,9 @@ int main(int argc, char *argv[])
             CUSPARSE_INDEX_32I,
             CUSPARSE_INDEX_32I,
             CUSPARSE_INDEX_BASE_ZERO,
-            computeType))
+            computeType
+        )
+    )
 
     cusparseSpMatDescr_t A2_CSR;
 
@@ -232,11 +175,11 @@ int main(int argc, char *argv[])
     //  in thrust dialect:
 
     float alpha = 1.0f, beta = 0.0f;
+    const cusparseOperation_t opA = CUSPARSE_OPERATION_NON_TRANSPOSE;
+    const cusparseOperation_t opB = CUSPARSE_OPERATION_NON_TRANSPOSE;
 
     size_t bufferSize1 = 0;
-    // estimate memmory needed for this
-    // PASSING NULL AS THE LAST PARAMETER
-    // TELLS CUSPARSE TO HANDLE MEMMORY IN ITS OWN BUFFER
+// estimate memmory needed for this
     CHECK_CUSPARSE(
         cusparseSpGEMM_workEstimation(
             handle,
@@ -254,12 +197,9 @@ int main(int argc, char *argv[])
             NULL
         )
     )
+    std::cout << "bufferSize1_d: " << bufferSize1 << std::endl;
     
     thrust::device_vector<uint8_t> d_buffer1(bufferSize1);
-
-    std::cout
-        << "bufferSize1_d: " << bufferSize1 << std::endl;
-
     CHECK_CUSPARSE(
         cusparseSpGEMM_workEstimation(
             handle,
@@ -275,8 +215,8 @@ int main(int argc, char *argv[])
             spgemmDesc,
             &bufferSize1,
             d_buffer1.data().get()
-            )
         )
+    )
 
     size_t bufferSize2 = 0;
     CHECK_CUSPARSE(
@@ -293,7 +233,9 @@ int main(int argc, char *argv[])
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize2,
-            NULL))
+            NULL
+        )
+    )
     std::cout << "bufferSize2_d: " << bufferSize2 << std::endl;
     thrust::device_vector<uint8_t> d_buffer2(bufferSize2);
 
@@ -350,67 +292,27 @@ int main(int argc, char *argv[])
             spgemmDesc
         )
     )
+
+    std::cout << "A2 CSR matrix created" << std::endl;
+    std::cout << "A2 Sparsity: " << (1 - ((float)A2_nnz / (A2_rows * A2_cols))) * 100 << "%" << std::endl;
+    std::cout << "A2_offs: " << d_A2_offs;
+    printCSR(d_A2_offs, d_A2_cols, d_A2_vals, A2_rows, A2_cols, A2_nnz);
 //DONE
 
 /*
 
-            INITIALIZE VECTORS FOR SPMV
+            CALCULATE p1
 
 */
-    CHECK_CUSPARSE(cusparseSpGEMM_destroyDescr(spgemmDesc));
-    CHECK_CUDA(cudaDeviceSynchronize());
+    thrust::device_vector<float> d_p1(n);
+    // make a copy of d_A_offs but with floats
+    thrust::device_vector<float> d_A_offs_float(d_A_offs);
 
-    // Now we will calculate A2 * [1 1 .... 1]^T
-    thrust::host_vector<float> h_mulVec(A2_rows, 1.0f);
-    thrust::device_vector<float> d_mulVec(h_mulVec);
+    const int num_blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    adjDif<<<num_blocks, BLOCK_SIZE>>>(d_A_offs_float.data().get(), d_p1.data().get(), n);
+    std::cout << "p1: " << d_p1;
 
-    cusparseDnVecDescr_t mulVec_descr;
-    CHECK_CUSPARSE(cusparseCreateDnVec(&mulVec_descr, A_rows, d_mulVec.data().get(), CUDA_R_32F))
-
-    thrust::host_vector<float> h_resVec(A2_rows);
-    thrust::device_vector<float> d_resVec(A2_rows);
-    cusparseDnVecDescr_t resVec_descr;
-    CHECK_CUSPARSE(cusparseCreateDnVec(&resVec_descr, A_rows, d_resVec.data().get(), CUDA_R_32F))
-
-/*
-
-            PERFORM SPMV
-
-*/
-
-    size_t bufferSize = 0;
-    CHECK_CUSPARSE(cusparseSpMV_bufferSize(
-        handle,
-        CUSPARSE_OPERATION_NON_TRANSPOSE,
-        &alpha,
-        A2_CSR,
-        mulVec_descr,
-        &beta,
-        resVec_descr,
-        CUDA_R_32F,
-        CUSPARSE_SPMV_ALG_DEFAULT,
-        &bufferSize
-        )
-    )
-
-    thrust::device_vector<uint8_t> d_buffer(bufferSize);
-
-    CHECK_CUSPARSE(cusparseSpMV(
-        handle,
-        CUSPARSE_OPERATION_NON_TRANSPOSE,
-        &alpha,
-        A2_CSR,
-        mulVec_descr,
-        &beta,
-        resVec_descr,
-        CUDA_R_32F,
-        CUSPARSE_SPMV_ALG_DEFAULT,
-        d_buffer.data().get()
-        )
-    )
-
-// DONE
-
+// DONE 
 /*
 
         HADAMARD PRODUCT OF A2 * A
@@ -424,9 +326,9 @@ int main(int argc, char *argv[])
 
 
                 // Create space for hadamard product
-    thrust::host_vector<int> h_had_offs(A2_rows+1);
-    thrust::host_vector<int> h_had_cols(A_nnz + A2_nnz);
-    thrust::host_vector<float> h_had_vals(A_nnz + A2_nnz);
+    thrust::host_vector<int> h_C3_offs(A2_rows+1);
+    thrust::host_vector<int> h_C3_cols(A_nnz + A2_nnz);
+    thrust::host_vector<float> h_C3_vals(A_nnz + A2_nnz);
 
                 // Calculate hadamard product
     int had_nnz = csr_hadmul_csr_canonical(
@@ -438,48 +340,186 @@ int main(int argc, char *argv[])
         h_A2_offs.data(),
         h_A2_cols.data(),
         h_A2_vals.data(),
-        h_had_offs.data(),
-        h_had_cols.data(),
-        h_had_vals.data()
+        h_C3_offs.data(),
+        h_C3_cols.data(),
+        h_C3_vals.data()
     );
 
-    h_had_cols.resize(had_nnz);
-    h_had_vals.resize(had_nnz);
+    h_C3_cols.resize(had_nnz);
+    h_C3_vals.resize(had_nnz);
 
     std::cout << "A hadamard A2 = " << std::endl;
-    printCSR(h_had_cols.data(), h_had_offs.data(), h_had_vals.data(), A2_rows, A2_cols, had_nnz);
+    printCSR(h_C3_offs, h_C3_cols, h_C3_vals, A2_rows, A2_cols, had_nnz);
+
+    thrust::device_vector<int> d_C3_offs(h_C3_offs);
+    thrust::device_vector<int> d_C3_cols(h_C3_cols);
+    thrust::device_vector<float> d_C3_vals(h_C3_vals);
+
+    cusparseSpMatDescr_t C3_CSR;
+    CHECK_CUSPARSE(cusparseCreateCsr(
+        &C3_CSR,
+        A_rows,
+        A_cols,
+        had_nnz,
+        d_C3_offs.data().get(),
+        d_C3_cols.data().get(),
+        d_C3_vals.data().get(),
+        CUSPARSE_INDEX_32I,
+        CUSPARSE_INDEX_32I,
+        CUSPARSE_INDEX_BASE_ZERO,
+        CUDA_R_32F
+    ))
+
+
 // DONE
 
-    CHECK_CUSPARSE(cusparseDestroySpMat(A_CSR));
-    CHECK_CUSPARSE(cusparseDestroySpMat(A2_CSR));
-    CHECK_CUSPARSE(cusparseDestroy(handle));
+/*
 
-    auto sparsity = [](thrust::host_vector<float>& vec) -> float
-    {
-        int nnz = 0;
-        for (auto& val : vec)
-        {
-            if (std::abs(val) > 1e-10) 
-            {
-                nnz++;
-            } 
-        }
-        return 1 - (float)nnz / (float)vec.size();
-    };
+            CALCULATE c3
 
-    std::cout << "A2 = " << std::endl;
-    //printCSR(h_A2_cols.data(), h_A2_offs.data(), h_A2_vals.data(), A_rows, A2_cols, A2_nnz);
+*/
+    thrust::device_vector<float> d_e(n, 1);
+    thrust::device_vector<float> d_c3(n); 
 
-    std::cout << "A2 * [1 1 ... 1]^T = ";
+    cusparseDnVecDescr_t e_descr;
+    cusparseDnVecDescr_t c3_descr;
 
-    h_resVec.resize(A2_rows);
-    thrust::copy(d_resVec.begin(), d_resVec.end(), h_resVec.begin());
-    for (int i = 0; i < A_rows; i++)
-    {
-        std::cout << h_resVec[i] << ", ";
-    } std::cout << std::endl;
+    CHECK_CUSPARSE(cusparseCreateDnVec(&e_descr, n, d_e.data().get(), CUDA_R_32F))
 
-    std::cout << "Resulting vector sparsity: " << sparsity(h_resVec)*100 << "%" << std::endl;
+    CHECK_CUSPARSE(cusparseCreateDnVec(&c3_descr, n, d_c3.data().get(), CUDA_R_32F))
 
+    size_t bufferSizeC3_1 = 0;
+
+    float alpha_c3 = 0.5;
+
+    CHECK_CUSPARSE(
+        cusparseSpMV_bufferSize(
+            handle,
+            CUSPARSE_OPERATION_NON_TRANSPOSE,
+            &alpha_c3,
+            C3_CSR,
+            e_descr,
+            &beta,
+            c3_descr,
+            computeType,
+            CUSPARSE_MV_ALG_DEFAULT,
+            &bufferSizeC3_1
+        )
+    )
+
+    thrust::device_vector<uint8_t> d_bufferC3(bufferSizeC3_1);
+
+    CHECK_CUSPARSE(cusparseSpMV(
+        handle,
+        CUSPARSE_OPERATION_NON_TRANSPOSE,
+        &alpha_c3,
+        C3_CSR,
+        e_descr,
+        &beta,
+        c3_descr,
+        computeType,
+        CUSPARSE_SPMV_ALG_DEFAULT,
+        d_bufferC3.data().get()
+        )
+    )
+
+    std::cout << "c3: " << d_c3;
+
+/*
+
+            CALCULATE p2
+
+*/
+    thrust::device_vector<float> d_Ap1(n);
+
+    cusparseDnVecDescr_t p1_descr;
+    cusparseDnVecDescr_t Ap1_descr;
+
+    CHECK_CUSPARSE(cusparseCreateDnVec(&p1_descr, n, d_p1.data().get(), CUDA_R_32F))
+    CHECK_CUSPARSE(cusparseCreateDnVec(&Ap1_descr, n, d_Ap1.data().get(), CUDA_R_32F))
+
+    size_t bufferSizeAp1 = 0;
+
+    float alpha_Ap1 = 1.0;
+
+    CHECK_CUSPARSE(
+        cusparseSpMV_bufferSize(
+            handle,
+            CUSPARSE_OPERATION_NON_TRANSPOSE,
+            &alpha_Ap1,
+            A_CSR,
+            p1_descr,
+            &beta,
+            Ap1_descr,
+            computeType,
+            CUSPARSE_MV_ALG_DEFAULT,
+            &bufferSizeAp1
+        )
+    )
+
+    thrust::device_vector<int> d_bufferAp1(bufferSizeAp1);
+
+    CHECK_CUSPARSE(cusparseSpMV(
+        handle,
+        CUSPARSE_OPERATION_NON_TRANSPOSE,
+        &alpha_Ap1,
+        A_CSR,
+        p1_descr,
+        &beta,
+        Ap1_descr,
+        computeType,
+        CUSPARSE_SPMV_ALG_DEFAULT,
+        d_bufferAp1.data().get()
+        )
+    )
+
+    thrust::device_vector<float> d_p2(n);
+
+    thrust::transform(
+        d_Ap1.begin(),
+        d_Ap1.end(),
+        d_p1.begin(),
+        d_p2.begin(),
+        thrust::minus<float>()
+    );
+
+/*
+
+            CALCULATE d2
+
+*/
+
+    thrust::device_vector<float> d_d2(n);
+
+    thrust::transform(
+        d_p2.begin(),
+        d_p2.end(),
+        d_c3.begin(),
+        d_d2.begin(),
+        thrust::minus<float>()
+    );
+
+/*
+
+            CALCULATE d3
+
+*/
+
+    thrust::device_vector<float> d_d3(n);
+
+    thrust::transform(
+        d_p1.begin(),
+        d_p1.end(),
+        d_c3.begin(),
+        d_d3.begin(),
+        d3_trans<float>()
+    );
+
+// DONE
+
+    std::cout << "d1 = " << d_p1;
+    std::cout << "d2 = " << d_d2;
+    std::cout << "d3 = " << d_d3;
+    std::cout << "d4 = " << d_c3;
     return 0;
 }
