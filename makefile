@@ -7,11 +7,19 @@ SRC_DIR := src
 PROGRAM_NAME := $(BIN_DIR)/fglt
 
 # Set the appropriate compile/link flags
-CFLAGS := -std=c++17
-LFLAGS := -std=c++17 -lcusparse_static -lculibos 
-GENERAL_FLAGS := --compiler-options -Wall
+CFLAGS :=
+LFLAGS :=  
+GENERAL_FLAGS := -std=c++17 --compiler-options -Wall
 
 BUILD_TYPE ?= release
+BUILD_ENV ?= container
+
+# Add flags based on BUILD_ENV (container or local)
+ifeq ($(BUILD_ENV), container)
+	LFLAGS += -lcusparse
+else ifeq ($(BUILD_ENV), local)
+	LFLAGS += -lcusparse_static -lculibos
+endif
 
 ## Add flags based on BUILD_TYPE (release or debug)
 ifeq ($(BUILD_TYPE), release)
