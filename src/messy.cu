@@ -133,23 +133,23 @@ int main(int argc, char *argv[])
 {
     // std::cout << "A positions HADAMARD A positions: " << tempres << std::endl;
     // HOST DATA
-    Symm_Sparse_matrix h_sA = loadFileToSymmSparse("/cuda_project/datasets/test.mtx");
+    h_csr h_sA = loadFileToCsr("/cuda_project/datasets/test.mtx");
     thrust::host_vector<float> h_sA_vals(h_sA.nnz, 1.0f);
 
-    thrust::device_vector<int> d_D(h_sA.n * 4);
+    thrust::device_vector<int> d_D(h_sA.rows * 4);
 
     std::cout << "A = " << std::endl;
-    printCSR(h_sA.positions.data(), h_sA.offsets.data(), h_sA_vals.data(), h_sA.n, h_sA.n, h_sA.n);
+    printCSR(h_sA.positions.data(), h_sA.offsets.data(), h_sA_vals.data(), h_sA.rows, h_sA.rows, h_sA.rows);
 
-    std::cout << "A Sparsity: " << (100 * ( 1 - ((float)h_sA.nnz / (float)(h_sA.n * h_sA.n)))) << "%" << std::endl;
+    std::cout << "A Sparsity: " << (100 * ( 1 - ((float)h_sA.nnz / (float)(h_sA.rows * h_sA.rows)))) << "%" << std::endl;
 
     std::cout << "A positions: " << h_sA.positions.size() << std::endl;
 
     // DEVICE DATA
     
 
-    int A_rows = h_sA.n;
-    int A_cols = h_sA.n;
+    int A_rows = h_sA.rows;
+    int A_cols = h_sA.rows;
     int A_nnz = h_sA.nnz;
 
     const int64_t A2_rows = A_rows;
