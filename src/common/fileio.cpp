@@ -32,7 +32,7 @@ Coo_matrix loadFileToCoo(const std::string filename) {
     return Coo_matrix{n, nnz, std::move(Ai), std::move(Aj)};
 }
 
-Symm_Sparse_matrix loadFileToSymmSparse(const std::string filename) {
+h_csr loadFileToCsr(const std::string filename) {
     // check file exists
     if(!std::ifstream(filename).good()) {
         std::cout << "File " << filename << " does not exist" << std::endl;
@@ -77,16 +77,20 @@ Symm_Sparse_matrix loadFileToSymmSparse(const std::string filename) {
     }
 
     // automatically moves the vectors, no copying is done here
-    return  Symm_Sparse_matrix{n, nnz, std::move(offsets), std::move(positions)};
+    return h_csr(n, n, nnz, std::move(offsets), std::move(positions), thrust::host_vector<float>(nnz, 1.0f));
 }
 
-void coo_to_sparse(const Coo_matrix& coo,  Symm_Sparse_matrix& sparse) {
-    sparse.n = coo.n;
+void coo_to_sparse(const Coo_matrix& coo,  h_csr& sparse) {
+    sparse.rows = coo.n;
+    sparse.cols = coo.n;
+
     sparse.nnz = coo.nnz;
     sparse.offsets.resize(coo.n + 1);
     sparse.positions.resize(coo.nnz);
+    sparse.values.resize(coo.nnz);
 
-    std::fill(sparse.offsets.begin(), sparse.offsets.end(), 0);
+    thrust::fill(sparse.offsets.begin(), sparse.offsets.end(), 0);
+    thrust::fill(sparse.values.begin(), sparse.values.end(), 1.0f);
 
     for(int n = 0; n < coo.nnz; n++) {
         sparse.offsets[coo.Ai[n]]++;
@@ -104,6 +108,7 @@ void coo_to_sparse(const Coo_matrix& coo,  Symm_Sparse_matrix& sparse) {
         int dest = sparse.offsets[row];
 
         sparse.positions[dest] = coo.Aj[n];
+
         sparse.offsets[row]++;
     }
 
