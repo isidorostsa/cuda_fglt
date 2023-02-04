@@ -563,7 +563,7 @@ int main(int argc, char *argv[])
             &beta,
             c3_descr,
             computeType,
-            CUSPARSE_MV_ALG_DEFAULT,
+            CUSPARSE_SPMV_ALG_DEFAULT,
             &bufferSizeC3_1
         )
     )
@@ -613,7 +613,7 @@ int main(int argc, char *argv[])
             &beta,
             Ap1_descr,
             computeType,
-            CUSPARSE_MV_ALG_DEFAULT,
+            CUSPARSE_SPMV_ALG_DEFAULT,
             &bufferSizeAp1
         )
     )
