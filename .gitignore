@@ -7,3 +7,4 @@ obj_debug/*
 obj_debug/common/*
 .nv
 include
+tmp
