@@ -67,7 +67,7 @@ T *csrToRowMajor(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> 
 template <typename T>
 void printCSR(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> &columnsCSR, thrust::host_vector<T> &valuesCSR, int rows, int cols, int nnz)
 {
-    if (rows * cols > 1000)
+    if (rows + cols > 1000)
     {
         std::cout << "Too big to print" << std::endl;
         return;

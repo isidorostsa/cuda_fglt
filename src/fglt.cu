@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 {
 
     // HOST DATA
-    h_csr h_A = loadFileToCsr("/work_dir/datasets/s6.mtx");
+    h_csr h_A = loadFileToCsr("/work_dir/datasets/s6_upperhalf.mtx");
     thrust::host_vector<float> h_A_vals(h_A.nnz, 1.0f);
 
     const int n = h_A.rows;
