@@ -8,3 +8,5 @@ obj_debug/common/*
 .nv
 include
 tmp
+.vscode/c_cpp_properties.json
+.gitignore
