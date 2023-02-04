@@ -39,38 +39,6 @@
 
 #define computeType CUDA_R_32F
 
-template<typename T>
-__global__ void elwiseMul(T* a, T* b, T* c, int n)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) {
-        c[i] = a[i] * b[i];
-    }
-}
-
-#define BLOCK_SIZE 256
-template<typename T>
-__global__ void adjDif(T* in, T* out, int n){
-    __shared__ T temp[BLOCK_SIZE + 1];
-
-    int gindex = threadIdx.x + blockIdx.x * blockDim.x;
-    int lindex = threadIdx.x;
-
-    if(gindex < n){
-        // Load input into shared memory
-        temp[lindex] = in[gindex];
-        if(lindex == BLOCK_SIZE-1 || gindex == n-1){
-            temp[lindex+1] = in[gindex + 1];
-        }
-    }
-
-    __syncthreads();
-
-    // Compute the difference
-    if(gindex < n)
-        out[gindex] = temp[lindex + 1] - temp[lindex];
-}
-
 struct d3_trans
 {
   __thrust_exec_check_disable__
@@ -80,7 +48,6 @@ struct d3_trans
     return (lhs)*(lhs-1) - 2*rhs;
   }
 };
-
 
 int main(int argc, char *argv[])
 {
