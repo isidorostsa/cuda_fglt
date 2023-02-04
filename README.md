@@ -17,7 +17,7 @@ sudo docker run --rm --gpus all -it -e CUDBG_USE_LEGACY_DEBUGGER=1 --cap-add=SYS
 - nvidia/cuda:12.0.1-devel-ubuntu20.04 is the image name (Works in Pop!_OS 22.04)
 - add __-it__ before __nvidia/cuda:12.0.1-devel-ubuntu20.04__ to run the container in interactive mode
 
-## Commands to compil
+## Commands to compile
 
 ### Compile
 
