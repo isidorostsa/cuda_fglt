@@ -41,7 +41,7 @@ std::ostream &operator<<(std::ostream &os, const thrust::device_vector<T> &vec)
 }
 
 template <typename T>
-T *csrToRowMajor(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> &columnsCSR, thrust::host_vector<T> &valuesCSR, int rows, int cols, int nnz)
+T *csrToRowMajor(const thrust::host_vector<int> &offsetsCSR, const thrust::host_vector<int> &columnsCSR, const thrust::host_vector<T> &valuesCSR, int rows, int cols, int nnz)
 {
     T *rowMajor = new T[rows * cols];
 
@@ -65,7 +65,7 @@ T *csrToRowMajor(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> 
 }
 
 template <typename T>
-void printCSR(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> &columnsCSR, thrust::host_vector<T> &valuesCSR, int rows, int cols, int nnz)
+void printCSR(const thrust::host_vector<int> &offsetsCSR, const thrust::host_vector<int> &columnsCSR, const thrust::host_vector<T> &valuesCSR, int rows, int cols, int nnz)
 {
     if (rows + cols > 1000)
     {
@@ -88,7 +88,7 @@ void printCSR(thrust::host_vector<int> &offsetsCSR, thrust::host_vector<int> &co
 }
 
 template <typename T>
-T *csrToRowMajor(thrust::device_vector<int> &offsetsCSR, thrust::device_vector<int> &columnsCSR, thrust::device_vector<T> &valuesCSR, int rows, int cols, int nnz)
+T *csrToRowMajor(const thrust::device_vector<int> &offsetsCSR, const thrust::device_vector<int> &columnsCSR, const thrust::device_vector<T> &valuesCSR, int rows, int cols, int nnz)
 {
     T *rowMajor = new T[rows * cols];
 
@@ -112,7 +112,7 @@ T *csrToRowMajor(thrust::device_vector<int> &offsetsCSR, thrust::device_vector<i
 }
 
 template <typename T>
-void printCSR(thrust::device_vector<int> &offsetsCSR, thrust::device_vector<int> &columnsCSR, thrust::device_vector<T> &valuesCSR, int rows, int cols, int nnz)
+void printCSR(const thrust::device_vector<int> &offsetsCSR, const thrust::device_vector<int> &columnsCSR, const thrust::device_vector<T> &valuesCSR, int rows, int cols, int nnz)
 {
     if (rows * cols > 1000)
     {

@@ -45,15 +45,27 @@ struct d3_trans
         __host__ __device__ constexpr float
         operator()(const float &lhs, const float &rhs) const
     {
-        return (lhs) * (lhs - 1) / 2 - 2 * rhs;
+        return (lhs) * (lhs - 1) / 2 -  rhs;
     }
 };
+
+struct d2_trans
+{
+    __thrust_exec_check_disable__
+        __host__ __device__ constexpr float
+        operator()(const float &lhs, const float &rhs) const
+    {
+        return (lhs) - 2 * rhs;
+    }
+};
+
+
 
 int main(int argc, char *argv[])
 {
 
     // HOST DATA
-    h_csr h_A = loadFileToCsr("/work_dir/datasets/s6_upperhalf.mtx");
+    h_csr h_A = loadFileToCsr("/work_dir/datasets/s6_mirrored.mtx");
     thrust::host_vector<float> h_A_vals(h_A.nnz, 1.0f);
 
     const int n = h_A.rows;
@@ -76,6 +88,9 @@ int main(int argc, char *argv[])
     */
     d_cusparse_csr d_A2 = d_cusparse_csr::multiply(d_A, d_A, handle);
 
+    std::cout << "A2 = " << std::endl;
+    printCSR(d_A2.get_offsets(), d_A2.get_positions(), d_A2.get_values(), n, n, d_A2.getNnz());
+
     /*
 
                 CALCULATE p1
@@ -85,7 +100,7 @@ int main(int argc, char *argv[])
     // make a copy of d_A_offs but with floats
     thrust::device_vector<float> d_A_offs_float(d_A.get_offsets());
 
-    std::cout << "d_A_offs_float: " << d_A_offs_float;
+    //std::cout << "d_A_offs_float: " << d_A_offs_float;
 
     // const int num_blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
     // adjDif<<<num_blocks, BLOCK_SIZE>>>(d_A_offs_float.data().get(), d_p1.data().get(), n);
@@ -158,7 +173,7 @@ int main(int argc, char *argv[])
         d_p2.end(),
         d_c3.begin(),
         d_d2.begin(),
-        thrust::minus<float>());
+        d2_trans());
 
     std::cout << "d2: " << d_d2;
 
