@@ -126,7 +126,7 @@ d_cusparse_csr::d_cusparse_csr(d_cusparse_csr &&other) : rows(other.rows), cols(
     update_descriptor();
 }
 
-d_cusparse_csr::d_cusparse_csr(const h_csr& h_csr_) : rows(h_csr_.rows), cols(h_csr_.cols), nnz(h_csr_.nnz),
+d_cusparse_csr::d_cusparse_csr(const h_csr &h_csr_) : rows(h_csr_.rows), cols(h_csr_.cols), nnz(h_csr_.nnz),
                                                       offsets(h_csr_.offsets), positions(h_csr_.positions), values(h_csr_.values)
 {
     update_descriptor();
@@ -220,9 +220,7 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize2,
-            d_buffer2.data().get()
-        )
-    )
+            d_buffer2.data().get()))
 
     // now in buffer2 resides the result of the multiplication
 
@@ -233,7 +231,6 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
 
     // we need to copy the result into C, but we need to resize C's vectors first
     // this will repoint the descriptor's pointers to the new empty vectors
-
 
     // now we can copy the result into the new C descriptor
     CHECK_CUSPARSE(
@@ -259,18 +256,18 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
 
 // MATRIX-VECTOR MULTIPLICATION
 
-thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, const thrust::device_vector<float>& v, cusparseHandle_t handle, float alpha, float beta)
+thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, const thrust::device_vector<float> &v, cusparseHandle_t handle, float alpha, float beta)
 {
     const size_t n = v.size();
 
     thrust::device_vector<float> v_out(v.size());
 
-#if CUDA_VERSION >= 12000
+#if CUSPARSE_VERSION >= 12000
     cusparseConstDnVecDescr_t v_desc;
     CHECK_CUSPARSE(cusparseCreateConstDnVec(&v_desc, v.size(), static_cast<const void *>(v.data().get()), A.compute_type))
 #else
     cusparseDnVecDescr_t v_desc;
-    CHECK_CUSPARSE(cusparseCreateDnVec(&v_desc, v.size(), const_cast<void*>(static_cast<const void *>(v.data().get())), A.compute_type))
+    CHECK_CUSPARSE(cusparseCreateDnVec(&v_desc, v.size(), const_cast<void *>(static_cast<const void *>(v.data().get())), A.compute_type))
 #endif
     cusparseDnVecDescr_t v_out_desc;
     CHECK_CUSPARSE(cusparseCreateDnVec(&v_out_desc, n, static_cast<void *>(v_out.data().get()), A.compute_type))
@@ -288,9 +285,7 @@ thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, c
             v_out_desc,
             A.compute_type,
             CUSPARSE_SPMV_ALG_DEFAULT,
-            &bufferSize
-        )
-    )
+            &bufferSize))
 
     thrust::device_vector<char> d_buffer(bufferSize);
 
@@ -305,9 +300,7 @@ thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, c
             v_out_desc,
             A.compute_type,
             CUSPARSE_SPMV_ALG_DEFAULT,
-            static_cast<void*>(d_buffer.data().get())
-        )
-    )
+            static_cast<void *>(d_buffer.data().get())))
 
     cusparseDestroyDnVec(v_desc);
 
@@ -378,7 +371,7 @@ void d_cusparse_csr::update_descriptor_pointers()
     CHECK_CUSPARSE(cusparseCsrSetPointers(desc, offsets.data().get(), positions.data().get(), values.data().get()))
 }
 
-/* cool but not used 
+/* cool but not used
 d_cusparse_csr::operator h_csr() const
 {
     thrust::host_vector<int> h_offsets(offsets);

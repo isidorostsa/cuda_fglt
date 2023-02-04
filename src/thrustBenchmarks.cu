@@ -75,7 +75,6 @@ int main(int argc, char *argv[])
     const size_t numBlocks = (test_size + blockSize - 1) / blockSize;
 
     time_point t1, t2;
-    {
         thrust::device_vector<float> temp(test_size, 3.0f);
         thrust::device_vector<float> tempres(temp.size());
 
@@ -112,7 +111,6 @@ int main(int argc, char *argv[])
                 break;
             }
         }
-    }
     {
         std::cout << "Differnece:\n";
 
@@ -127,7 +125,12 @@ int main(int argc, char *argv[])
         //std::cout << "Kernel result: " << tempdifres << std::endl;
 
         t1 = now();
-        thrust::adjacent_difference(thrust::device, tempdif.begin(), tempdif.end(), tempdifres.begin());
+        thrust::transform(
+            tempdif.begin() + 1, tempdif.end(),
+            tempdif.begin(), //tempdif.end()-1,
+            tempdifres.begin(),
+            thrust::minus<float>()
+        );
         cudaDeviceSynchronize();
         t2 = now();
         std::cout << "\tThrust time taken: " << ms_time(t1, t2) << " ms" << std::endl;

@@ -22,7 +22,6 @@ private:
 
     const cudaDataType_t compute_type = CUDA_R_32F;
 
-
     void update_descriptor();
 
 public:
@@ -58,7 +57,7 @@ public:
 
     static d_cusparse_csr multiply(const d_cusparse_csr &A, const d_cusparse_csr &B, cusparseHandle_t cusparseHandle);
 
-    static thrust::device_vector<float> multiply(const d_cusparse_csr &A, const thrust::device_vector<float>& v, cusparseHandle_t cusparseHandle, float alpha = 1.0f, float beta = 0.0f);
+    static thrust::device_vector<float> multiply(const d_cusparse_csr &A, const thrust::device_vector<float> &v, cusparseHandle_t cusparseHandle, float alpha = 1.0f, float beta = 0.0f);
 
     int getRows() const;
     int getCols() const;
@@ -70,7 +69,7 @@ public:
 
     const thrust::device_vector<float> &get_values() const;
 
-    const cusparseSpMatDescr_t& get_descriptor() const;
+    const cusparseSpMatDescr_t &get_descriptor() const;
 
     // cool but not used operator h_csr() const;
 };

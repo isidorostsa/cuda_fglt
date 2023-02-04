@@ -74,55 +74,63 @@ void printCSR(int *columnsCSR, int *offsetsCSR, float *valuesCSR, int rows, int 
     std::cout << std::endl;
 }
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const thrust::host_vector<T>& vec)
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const thrust::host_vector<T> &vec)
 {
     os << "|";
-    for (const T& el : vec) {
+    for (const T &el : vec)
+    {
         os << " " << el << " |";
-    } os << std::endl;
+    }
+    os << std::endl;
     return os;
 }
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const thrust::device_vector<T>& vec)
+template <typename T>
+std::ostream &operator<<(std::ostream &os, const thrust::device_vector<T> &vec)
 {
     os << "|";
-    for (const T& el : vec) {
+    for (const T &el : vec)
+    {
         os << " " << el << " |";
-    } os << std::endl;
+    }
+    os << std::endl;
     return os;
 }
 
-template<typename T>
-__global__ void elwiseMul(T* a, T* b, T* c, int n)
+template <typename T>
+__global__ void elwiseMul(T *a, T *b, T *c, int n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < n) {
+    if (i < n)
+    {
         c[i] = a[i] * b[i];
     }
 }
 
 #define BLOCK_SIZE 256
-template<typename T>
-__global__ void adjDif(T* in, T* out, int n){
+template <typename T>
+__global__ void adjDif(T *in, T *out, int n)
+{
     __shared__ T temp[BLOCK_SIZE + 1];
 
     int gindex = threadIdx.x + blockIdx.x * blockDim.x;
     int lindex = threadIdx.x;
 
-    if(gindex < n){
+    if (gindex < n)
+    {
         // Load input into shared memory
         temp[lindex] = in[gindex];
-        if(lindex == BLOCK_SIZE-1 || gindex == n-1){
-            temp[lindex+1] = in[gindex + 1];
+        if (lindex == BLOCK_SIZE - 1 || gindex == n - 1)
+        {
+            temp[lindex + 1] = in[gindex + 1];
         }
     }
 
     __syncthreads();
 
     // Compute the difference
-    if(gindex < n)
+    if (gindex < n)
         out[gindex] = temp[lindex + 1] - temp[lindex];
 }
 
@@ -141,12 +149,11 @@ int main(int argc, char *argv[])
     std::cout << "A = " << std::endl;
     printCSR(h_sA.positions.data(), h_sA.offsets.data(), h_sA_vals.data(), h_sA.rows, h_sA.rows, h_sA.rows);
 
-    std::cout << "A Sparsity: " << (100 * ( 1 - ((float)h_sA.nnz / (float)(h_sA.rows * h_sA.rows)))) << "%" << std::endl;
+    std::cout << "A Sparsity: " << (100 * (1 - ((float)h_sA.nnz / (float)(h_sA.rows * h_sA.rows)))) << "%" << std::endl;
 
     std::cout << "A positions: " << h_sA.positions.size() << std::endl;
 
     // DEVICE DATA
-    
 
     int A_rows = h_sA.rows;
     int A_cols = h_sA.rows;
@@ -173,13 +180,13 @@ int main(int argc, char *argv[])
     cusparseHandle_t handle;
     CHECK_CUSPARSE(cusparseCreate(&handle))
 
-    //CHECK_CUSPARSE(cusparseLoggerSetMask(1 | 0 | 4 | 8 | 16))
+    // CHECK_CUSPARSE(cusparseLoggerSetMask(1 | 0 | 4 | 8 | 16))
 
-/*
+    /*
 
-        CSR MATRIX CREATION
+            CSR MATRIX CREATION
 
-*/
+    */
 
     cusparseSpMatDescr_t A_CSR;
     CHECK_CUSPARSE(
@@ -210,15 +217,13 @@ int main(int argc, char *argv[])
             CUSPARSE_INDEX_32I,
             CUSPARSE_INDEX_32I,
             CUSPARSE_INDEX_BASE_ZERO,
-            computeType
-        )
-    )
+            computeType))
 
-/*
+    /*
 
-            A_2 = A*A COMPUTATION
+                A_2 = A*A COMPUTATION
 
-*/
+    */
 
     cusparseSpGEMMDescr_t spgemmDesc;
     CHECK_CUSPARSE(cusparseSpGEMM_createDescr(&spgemmDesc))
@@ -246,10 +251,8 @@ int main(int argc, char *argv[])
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize1,
-            NULL
-        )
-    )
-    
+            NULL))
+
     thrust::device_vector<uint8_t> d_buffer1(bufferSize1);
 
     std::cout
@@ -269,9 +272,7 @@ int main(int argc, char *argv[])
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize1,
-            d_buffer1.data().get()
-            )
-        )
+            d_buffer1.data().get()))
 
     size_t bufferSize2 = 0;
     CHECK_CUSPARSE(
@@ -288,7 +289,10 @@ int main(int argc, char *argv[])
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize2,
-            NULL))
+            NULL
+        )
+    )
+
     std::cout << "bufferSize2_d: " << bufferSize2 << std::endl;
     thrust::device_vector<uint8_t> d_buffer2(bufferSize2);
 
@@ -326,9 +330,7 @@ int main(int argc, char *argv[])
             A2_CSR,
             d_A2_offs.data().get(),
             d_A2_cols.data().get(),
-            d_A2_vals.data().get()
-        )
-    )
+            d_A2_vals.data().get()))
 
     CHECK_CUSPARSE(
         cusparseSpGEMM_copy(
@@ -342,19 +344,17 @@ int main(int argc, char *argv[])
             A2_CSR,
             computeType,
             CUSPARSE_SPGEMM_DEFAULT,
-            spgemmDesc
-        )
-    )
+            spgemmDesc))
 
     std::cout << "A2 CSR matrix created" << std::endl;
     std::cout << "A2 Sparsity: " << (1 - ((float)A2_nnz / (A2_rows * A2_cols))) * 100 << "%" << std::endl;
-//DONE
+    // DONE
 
-/*
+    /*
 
-            INITIALIZE VECTORS FOR SPMV
+                INITIALIZE VECTORS FOR SPMV
 
-*/
+    */
     CHECK_CUSPARSE(cusparseSpGEMM_destroyDescr(spgemmDesc));
     CHECK_CUDA(cudaDeviceSynchronize());
 
@@ -370,11 +370,11 @@ int main(int argc, char *argv[])
     cusparseDnVecDescr_t resVec_descr;
     CHECK_CUSPARSE(cusparseCreateDnVec(&resVec_descr, A_rows, d_resVec.data().get(), CUDA_R_32F))
 
-/*
+    /*
 
-            PERFORM SPMV
+                PERFORM SPMV
 
-*/
+    */
 
     size_t bufferSize = 0;
     CHECK_CUSPARSE(cusparseSpMV_bufferSize(
@@ -387,9 +387,7 @@ int main(int argc, char *argv[])
         resVec_descr,
         CUDA_R_32F,
         CUSPARSE_SPMV_ALG_DEFAULT,
-        &bufferSize
-        )
-    )
+        &bufferSize))
 
     thrust::device_vector<uint8_t> d_buffer(bufferSize);
 
@@ -403,30 +401,27 @@ int main(int argc, char *argv[])
         resVec_descr,
         CUDA_R_32F,
         CUSPARSE_SPMV_ALG_DEFAULT,
-        d_buffer.data().get()
-        )
-    )
+        d_buffer.data().get()))
 
-// DONE
+    // DONE
 
-/*
+    /*
 
-        HADAMARD PRODUCT OF A2 * A
+            HADAMARD PRODUCT OF A2 * A
 
-*/
+    */
 
-                // Copy A2 to host
+    // Copy A2 to host
     thrust::host_vector<int> h_A2_offs(d_A2_offs);
     thrust::host_vector<int> h_A2_cols(d_A2_cols);
     thrust::host_vector<float> h_A2_vals(d_A2_vals);
 
-
-                // Create space for hadamard product
-    thrust::host_vector<int> h_had_offs(A2_rows+1);
+    // Create space for hadamard product
+    thrust::host_vector<int> h_had_offs(A2_rows + 1);
     thrust::host_vector<int> h_had_cols(A_nnz + A2_nnz);
     thrust::host_vector<float> h_had_vals(A_nnz + A2_nnz);
 
-                // Calculate hadamard product
+    // Calculate hadamard product
     int had_nnz = csr_hadmul_csr_canonical(
         A_rows,
         A_cols,
@@ -438,29 +433,28 @@ int main(int argc, char *argv[])
         h_A2_vals.data(),
         h_had_offs.data(),
         h_had_cols.data(),
-        h_had_vals.data()
-    );
+        h_had_vals.data());
 
     h_had_cols.resize(had_nnz);
     h_had_vals.resize(had_nnz);
 
     std::cout << "A hadamard A2 = " << std::endl;
-    //printCSR(h_had_cols.data(), h_had_offs.data(), h_had_vals.data(), A2_rows, A2_cols, had_nnz);
-// DONE
+    // printCSR(h_had_cols.data(), h_had_offs.data(), h_had_vals.data(), A2_rows, A2_cols, had_nnz);
+    // DONE
 
     CHECK_CUSPARSE(cusparseDestroySpMat(A_CSR));
     CHECK_CUSPARSE(cusparseDestroySpMat(A2_CSR));
     CHECK_CUSPARSE(cusparseDestroy(handle));
 
-    auto sparsity = [](thrust::host_vector<float>& vec) -> float
+    auto sparsity = [](thrust::host_vector<float> &vec) -> float
     {
         int nnz = 0;
-        for (auto& val : vec)
+        for (auto &val : vec)
         {
-            if (std::abs(val) > 1e-10) 
+            if (std::abs(val) > 1e-10)
             {
                 nnz++;
-            } 
+            }
         }
         return 1 - (float)nnz / (float)vec.size();
     };
@@ -475,9 +469,10 @@ int main(int argc, char *argv[])
     for (int i = 0; i < A_rows; i++)
     {
         std::cout << h_resVec[i] << ", ";
-    } std::cout << std::endl;
+    }
+    std::cout << std::endl;
 
-    std::cout << "Resulting vector sparsity: " << sparsity(h_resVec)*100 << "%" << std::endl;
+    std::cout << "Resulting vector sparsity: " << sparsity(h_resVec) * 100 << "%" << std::endl;
 
     return 0;
 }

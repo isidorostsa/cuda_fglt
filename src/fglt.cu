@@ -41,12 +41,12 @@
 
 struct d3_trans
 {
-  __thrust_exec_check_disable__
-  __host__ __device__
-  constexpr float operator()(const float &lhs, const float &rhs) const
-  {
-    return (lhs)*(lhs-1) - 2*rhs;
-  }
+    __thrust_exec_check_disable__
+        __host__ __device__ constexpr float
+        operator()(const float &lhs, const float &rhs) const
+    {
+        return (lhs) * (lhs - 1) - 2 * rhs;
+    }
 };
 
 int main(int argc, char *argv[])
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 
     std::cout << "A = " << std::endl;
     printCSR(h_A.offsets, h_A.positions, h_A_vals, n, n, nnz);
-    std::cout << "A Sparsity: " << (100 * ( 1 - ((float)h_A.nnz / (float)(n * n)))) << "%" << std::endl;
+    std::cout << "A Sparsity: " << (100 * (1 - ((float)h_A.nnz / (float)(n * n)))) << "%" << std::endl;
     std::cout << "A positions: " << h_A.positions.size() << std::endl;
 
     // DEVICE DATA
@@ -69,18 +69,18 @@ int main(int argc, char *argv[])
 
     cusparseHandle_t handle;
     CHECK_CUSPARSE(cusparseCreate(&handle))
-/*
+    /*
 
-            A_2 = A*A COMPUTATION
+                A_2 = A*A COMPUTATION
 
-*/
+    */
     d_cusparse_csr d_A2 = d_cusparse_csr::multiply(d_A, d_A, handle);
 
-/*
+    /*
 
-            CALCULATE p1
+                CALCULATE p1
 
-*/
+    */
     thrust::device_vector<float> d_p1(n);
     // make a copy of d_A_offs but with floats
     thrust::device_vector<float> d_A_offs_float(d_A.get_offsets());
@@ -90,46 +90,45 @@ int main(int argc, char *argv[])
 
     thrust::transform(
         d_A_offs_float.begin() + 1, d_A_offs_float.end(),
-        d_A_offs_float.begin(), //d_A_offs_float.end()-1,
+        d_A_offs_float.begin(), // d_A_offs_float.end()-1,
         d_p1.begin(),
-        thrust::minus<float>()
-    );
+        thrust::minus<float>());
 
     std::cout << "p1: " << d_p1;
 
-// DONE 
-/*
+    // DONE
+    /*
 
-        HADAMARD PRODUCT OF A2 * A
+            HADAMARD PRODUCT OF A2 * A
 
-*/
-                // Copy A2 to host
+    */
+    // Copy A2 to host
     h_csr h_A2(d_A2);
-                // Create space for hadamard product
+    // Create space for hadamard product
     h_csr h_C3 = h_csr::hadamard(h_A, h_A2);
 
-    // printCSR 
+    // printCSR
     std::cout << "C3 = " << std::endl;
     printCSR(h_C3.offsets, h_C3.positions, h_C3.values, n, n, h_C3.nnz);
 
     d_cusparse_csr d_C3(h_C3);
 
-// DONE
+    // DONE
 
-/*
+    /*
 
-            CALCULATE c3
+                CALCULATE c3
 
-*/
+    */
     thrust::device_vector<float> d_e(n, 1.0f);
-    thrust::device_vector<float> d_c3 = d_cusparse_csr::multiply(d_C3, d_e, handle, 0.5f, 0.0f); 
+    thrust::device_vector<float> d_c3 = d_cusparse_csr::multiply(d_C3, d_e, handle, 0.5f, 0.0f);
 
     std::cout << "c3: " << d_c3;
-/*
+    /*
 
-            CALCULATE p2
+                CALCULATE p2
 
-*/
+    */
     thrust::device_vector<float> d_Ap1 = d_cusparse_csr::multiply(d_A, d_p1, handle);
 
     thrust::device_vector<float> d_p2(n);
@@ -139,15 +138,14 @@ int main(int argc, char *argv[])
         d_Ap1.end(),
         d_p1.begin(),
         d_p2.begin(),
-        thrust::minus<float>()
-    );
+        thrust::minus<float>());
 
     std::cout << "p2: " << d_p2;
-/*
+    /*
 
-            CALCULATE d2
+                CALCULATE d2
 
-*/
+    */
 
     thrust::device_vector<float> d_d2(n);
 
@@ -156,17 +154,15 @@ int main(int argc, char *argv[])
         d_p2.end(),
         d_c3.begin(),
         d_d2.begin(),
-        thrust::minus<float>()
-    );
+        thrust::minus<float>());
 
     std::cout << "d2: " << d_d2;
 
+    /*
 
-/*
+                CALCULATE d3
 
-            CALCULATE d3
-
-*/
+    */
 
     thrust::device_vector<float> d_d3(n);
 
@@ -175,12 +171,11 @@ int main(int argc, char *argv[])
         d_p1.end(),
         d_c3.begin(),
         d_d3.begin(),
-        d3_trans()
-    );
+        d3_trans());
 
     std::cout << "d3: " << d_d3;
 
-// DONE
+    // DONE
 
     std::cout << "d1 = " << d_p1;
     std::cout << "d2 = " << d_d2;
