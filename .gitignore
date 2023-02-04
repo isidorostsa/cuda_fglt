@@ -9,4 +9,4 @@ obj_debug/common/*
 include
 tmp
 .vscode/c_cpp_properties.json
-.gitignore
+.vscode/settings.json
