@@ -48,8 +48,39 @@ h_csr::h_csr(int rows, int cols, int nnz, thrust::host_vector<int> &&offsets, th
 h_csr::h_csr(h_csr &&other) : h_csr(other.rows, other.cols, other.nnz, std::move(other.offsets), std::move(other.positions), std::move(other.values)) {}
 
 // conversion constructor
-h_csr::h_csr(const d_cusparse_csr &d_csr) : rows(d_csr.getRows()), cols(d_csr.getCols()), nnz(d_csr.getNnz()),
+h_csr::h_csr(const d_cusparse_csr &d_csr) : rows(d_csr.get_rows()), cols(d_csr.get_cols()), nnz(d_csr.get_nnz()),
                                             offsets(d_csr.get_offsets()), positions(d_csr.get_positions()), values(d_csr.get_values()) {}
+
+// getters
+int h_csr::get_rows() const
+{
+    return rows;
+}
+
+int h_csr::get_cols() const
+{
+    return cols;
+}
+
+int h_csr::get_nnz() const
+{
+    return nnz;
+}
+
+const thrust::host_vector<int>& h_csr::get_offsets() const
+{
+    return offsets;
+}
+
+const thrust::host_vector<int>& h_csr::get_positions() const
+{
+    return positions;
+}
+
+const thrust::host_vector<float>& h_csr::get_values() const
+{
+    return values;
+}
 
 void h_csr::resize(int rows, int cols, int nnz)
 {
