@@ -59,9 +59,9 @@ public:
 
     static thrust::device_vector<float> multiply(const d_cusparse_csr &A, const thrust::device_vector<float> &v, cusparseHandle_t cusparseHandle, float alpha = 1.0f, float beta = 0.0f);
 
-    int getRows() const;
-    int getCols() const;
-    int getNnz() const;
+    int get_rows() const;
+    int get_cols() const;
+    int get_nnz() const;
 
     const thrust::device_vector<int> &get_offsets() const;
 

@@ -152,6 +152,96 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
     float alpha = 1.0f;
     float beta = 0.0f;
 
+    // inspect SpGEMM work space
+
+    std::cout << "Inspecting SpGEMM work space..." << std::endl;
+    std::cout << "A: " << A.rows << " x " << A.cols << " nnz: " << A.nnz << std::endl;
+    std::cout << "B: " << B.rows << " x " << B.cols << " nnz: " << B.nnz << std::endl;
+
+    std::cout << "A offsets size: " << A.offsets.size() << std::endl;
+    std::cout << "A positions size: " << A.positions.size() << std::endl;
+    std::cout << "A values size: " << A.values.size() << std::endl;
+
+    // first and last 10 elements of each vector
+
+    std::cout << "A offsets first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << A.offsets[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "A offsets last 10: ";
+    for (int i = A.offsets.size() - 10; i < A.offsets.size(); i++)
+    {
+        std::cout << A.offsets[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "A positions first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << A.positions[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "A positions last 10: ";
+    for (int i = A.positions.size() - 10; i < A.positions.size(); i++)
+    {
+        std::cout << A.positions[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "A values first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << A.values[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "A values last 10: ";
+    for (int i = A.values.size() - 10; i < A.values.size(); i++)
+    {
+        std::cout << A.values[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B offsets first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << B.offsets[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B offsets last 10: ";
+    for (int i = B.offsets.size() - 10; i < B.offsets.size(); i++)
+    {
+        std::cout << B.offsets[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B positions first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << B.positions[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B positions last 10: ";
+    for (int i = B.positions.size() - 10; i < B.positions.size(); i++)
+    {
+        std::cout << B.positions[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B values first 10: ";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << B.values[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B values last 10: ";
+    for (int i = B.values.size() - 10; i < B.values.size(); i++)
+    {
+        std::cout << B.values[i] << " ";
+    } std::cout << '\n';
+
+    std::cout << "B offsets size: " << B.offsets.size() << std::endl;
+    std::cout << "B positions size: " << B.positions.size() << std::endl;
+    std::cout << "B values size: " << B.values.size() << std::endl;
+
+    std::cout << "B offsets last: " << B.offsets[B.offsets.size() - 1] << std::endl;
+
     size_t bufferSize1;
     CHECK_CUSPARSE(
         cusparseSpGEMM_workEstimation(
@@ -169,7 +259,13 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
             &bufferSize1,
             NULL))
 
-    thrust::device_vector<char> d_buffer1(bufferSize1);
+    std::cout << "Megabytes needed for SpGEMM 1: " << bufferSize1 / 1024.0 / 1024.0 << " MB" << std::endl;
+
+    // thrust::device_vector<uint8_t> d_buffer1(bufferSize1*2);
+
+    void* d_buffer1;
+
+    cudaMalloc((void **)&d_buffer1, bufferSize1);
 
     CHECK_CUSPARSE(
         cusparseSpGEMM_workEstimation(
@@ -185,7 +281,10 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize1,
-            d_buffer1.data().get()))
+            // d_buffer1.data().get()
+            d_buffer1
+        )
+    )
 
     size_t bufferSize2 = 0;
     CHECK_CUSPARSE(
@@ -202,7 +301,11 @@ d_cusparse_csr d_cusparse_csr::multiply(const d_cusparse_csr &A, const d_cuspars
             CUSPARSE_SPGEMM_DEFAULT,
             spgemmDesc,
             &bufferSize2,
-            NULL))
+            NULL
+        )
+    )
+
+    std::cout << "Megabytes needed for SpGEMM 2: " << bufferSize2 / 1024.0 / 1024.0 << " MB" << std::endl;
 
     thrust::device_vector<char> d_buffer2(bufferSize2);
 
@@ -307,9 +410,9 @@ thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, c
     return v_out;
 }
 
-int d_cusparse_csr::getRows() const { return rows; }
-int d_cusparse_csr::getCols() const { return cols; }
-int d_cusparse_csr::getNnz() const { return nnz; }
+int d_cusparse_csr::get_rows() const { return rows; }
+int d_cusparse_csr::get_cols() const { return cols; }
+int d_cusparse_csr::get_nnz() const { return nnz; }
 
 const thrust::device_vector<int> &d_cusparse_csr::get_offsets() const
 {
