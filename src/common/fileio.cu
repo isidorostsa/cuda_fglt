@@ -3,13 +3,21 @@
 #include <fstream>
 
 #include <thrust/host_vector.h>
+
 #include "fileio.hpp"
+#include "host_structs.hpp"
 
 #pragma GCC diagnostic ignored "-Wformat-security"
 #pragma GCC diagnostic ignored "-Wunused-result"
 
-Coo_matrix loadFileToCoo(const std::string filename)
+h_coo loadFileToCoo(const std::string& filename)
 {
+    // check if file exists
+    if(!std::ifstream(filename).good()) {
+        std::cout << "File " << filename << " does not exist" << std::endl;
+        exit(1);
+    }
+
     std::ifstream fin(filename);
 
     int n, nnz;
@@ -33,10 +41,53 @@ Coo_matrix loadFileToCoo(const std::string filename)
     }
 
     // automatically moves the vectors, no copying is done here
-    return Coo_matrix{n, nnz, std::move(Ai), std::move(Aj)};
+    return h_coo{n, nnz, std::move(Ai), std::move(Aj)};
 }
 
-h_csr loadFileToCsr(const std::string filename)
+h_coo loadSymmFileToCoo(const std::string& filename)
+{
+    std::ifstream fin(filename);
+    // check if file exists
+    if(!std::ifstream(filename).good()) {
+        std::cout << "File " << filename << " does not exist" << std::endl;
+        exit(1);
+    }
+
+
+    int n, nnz;
+    while (fin.peek() == '%')
+        fin.ignore(2048, '\n');
+
+    fin >> n >> n >> nnz;
+
+    thrust::host_vector<int> Ai(2*nnz);
+    thrust::host_vector<int> Aj(2*nnz);
+
+    int throwaway;
+    // lines may be of the form: i j or i j throwaway
+    for (int i = 0; i < nnz; i++)
+    {
+        int array_index = 2*i;
+        fin >> Ai[array_index] >> Aj[array_index];
+        Ai[array_index]--;
+        Aj[array_index]--;
+
+        if (Ai[array_index] == Aj[array_index]){
+            throw std::runtime_error("Diagonal elements are not allowed");
+        }
+
+        Ai[array_index + 1] = Aj[array_index];
+        Aj[array_index + 1] = Ai[array_index];
+
+        if (fin.peek() != '\n')
+            fin >> throwaway;
+    }
+
+    // automatically moves the vectors, no copying is done here
+    return h_coo{n, 2*nnz, std::move(Ai), std::move(Aj)};
+}
+
+h_csr loadFileToCsr(const std::string& filename)
 {
     // check file exists
     if (!std::ifstream(filename).good())
@@ -93,8 +144,10 @@ h_csr loadFileToCsr(const std::string filename)
     return h_csr(n, n, nnz, std::move(offsets), std::move(positions), thrust::host_vector<float>(nnz, 1.0f));
 }
 
-void coo_to_sparse(const Coo_matrix &coo, h_csr &sparse)
+h_csr coo_to_csr(const h_coo &coo)
 {
+
+    h_csr sparse;
     sparse.rows = coo.n;
     sparse.cols = coo.n;
 
@@ -135,4 +188,11 @@ void coo_to_sparse(const Coo_matrix &coo, h_csr &sparse)
         sparse.offsets[i] = last;
         last = temp;
     }
+
+    return sparse;
+}
+
+h_csr loadSymmFileToCsr(const std::string& filename) {
+    h_coo coo = loadSymmFileToCoo(filename);
+    return coo_to_csr(coo);
 }
