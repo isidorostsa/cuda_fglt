@@ -64,8 +64,10 @@ struct d2_trans
 int main(int argc, char *argv[])
 {
 
+    std::string filename(argv[1]); 
     // HOST DATA
-    h_csr h_A = loadFileToCsr("/work_dir/datasets/s6_mirrored.mtx");
+    h_csr h_A = loadSymmFileToCsr(filename);
+
     thrust::host_vector<float> h_A_vals(h_A.nnz, 1.0f);
 
     const int n = h_A.rows;
@@ -73,8 +75,10 @@ int main(int argc, char *argv[])
 
     std::cout << "A = " << std::endl;
     printCSR(h_A.offsets, h_A.positions, h_A_vals, n, n, nnz);
-    std::cout << "A Sparsity: " << (100 * (1 - ((float)h_A.nnz / (float)(n * n)))) << "%" << std::endl;
+    std::cout << "A Sparsity: " << (100 * (1 - ((float)h_A.nnz / ((float)(n) * (float)n)))) << "%" << std::endl;
     std::cout << "A positions: " << h_A.positions.size() << std::endl;
+
+    
 
     // DEVICE DATA
     d_cusparse_csr d_A(h_A);
@@ -89,7 +93,7 @@ int main(int argc, char *argv[])
     d_cusparse_csr d_A2 = d_cusparse_csr::multiply(d_A, d_A, handle);
 
     std::cout << "A2 = " << std::endl;
-    printCSR(d_A2.get_offsets(), d_A2.get_positions(), d_A2.get_values(), n, n, d_A2.getNnz());
+    printCSR(d_A2.get_offsets(), d_A2.get_positions(), d_A2.get_values(), n, n, d_A2.get_nnz());
 
     /*
 
@@ -173,14 +177,13 @@ int main(int argc, char *argv[])
         d_p2.end(),
         d_c3.begin(),
         d_d2.begin(),
-        d2_trans());
+        d2_trans()
+    );
 
     std::cout << "d2: " << d_d2;
 
     /*
-
                 CALCULATE d3
-
     */
 
     thrust::device_vector<float> d_d3(n);
