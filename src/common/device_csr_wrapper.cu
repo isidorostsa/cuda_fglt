@@ -451,13 +451,8 @@ void d_cusparse_csr::follow_descriptor()
     update_descriptor_pointers();
 }
 
-// TODO FIX THIS!!!!!
 void d_cusparse_csr::resize_vectors(size_t offset_size, size_t position_value_size)
 {
-    /*
-    int64_t rows_desc, cols_desc, nnz_desc;
-    CHECK_CUSPARSE(cusparseSpMatGetSize(desc, &rows_desc, &cols_desc, &nnz_desc));
-    */
     this->rows = offset_size - 1;
     this->cols = position_value_size;
     this->nnz = position_value_size;
@@ -473,6 +468,23 @@ void d_cusparse_csr::update_descriptor_pointers()
 {
     CHECK_CUSPARSE(cusparseCsrSetPointers(desc, offsets.data().get(), positions.data().get(), values.data().get()))
 }
+
+// a kernel that first computes the number of nonzeros in each block
+// and then copies the values into the correct positions
+// __global__ void hadamard_kernel(const int n, const int A_nnz, const int B_nnz, const int *A_offsets, const int *A_positions, const float *A_values, const int *B_offsets, const int *B_positions, const float *B_values, int *C_offsets, int *C_positions, float *C_values)
+// {
+//     int block = blockIdx.x;
+//     int tid = threadIdx.x;
+
+//     int els_per_block = (n + gridDim.x - 1) / gridDim.x;
+
+//     int block_start = block * els_per_block;
+//     int block_end = min((block + 1) * els_per_block, n);
+
+//     int block_size = block_end - block_start;
+
+// }
+
 
 /* cool but not used
 d_cusparse_csr::operator h_csr() const
