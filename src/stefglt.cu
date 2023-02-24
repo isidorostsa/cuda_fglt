@@ -102,44 +102,6 @@ void get_c3_v2_1(const h_csr &A, int *c3)
   }
 }
 
-void get_c3_v2_binary(const h_csr &A, int *c3)
-{
-  for (int i = 0; i < A.get_rows(); i++)
-  {
-    const int i_nb_start = A.offsets[i];
-    const int i_nb_end = A.offsets[i + 1];
-
-    for (int i_nb_idx = i_nb_start; i_nb_idx < i_nb_end; i_nb_idx++)
-    {
-      int common_nb = 0;      
-
-      const int j = A.positions[i_nb_idx];
-
-      const int j_nb_start = A.offsets[j];
-      const int j_nb_end = A.offsets[j + 1];
-
-      int _i_nb_idx = i_nb_start;
-      int _j_nb_idx = j_nb_start;
-
-      for(int _i_nb_idx = i_nb_start; _i_nb_idx < i_nb_end; _i_nb_idx++)
-      {
-        const int i_nb = A.positions[_i_nb_idx];
-        while (_j_nb_idx < j_nb_end && A.positions[_j_nb_idx] < i_nb)
-        {
-          _j_nb_idx++;
-        }
-        if (_j_nb_idx < j_nb_end && A.positions[_j_nb_idx] == i_nb)
-        {
-          common_nb++;
-        }
-      }
-      c3[i] += common_nb;
-    }
-  }
-
-  std::transform(c3, c3 + A.get_rows(), c3, [](int x) { return x / 2; });
-}
-
 void get_c3_v2_2(const h_csr &A, int *c3)
 {  
   std::fill(c3, c3 + A.get_rows(), 0);
