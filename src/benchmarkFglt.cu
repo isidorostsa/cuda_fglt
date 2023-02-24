@@ -13,6 +13,17 @@
 #include "common/printing.hpp"
 #include "common/device_csr_wrapper.hpp"
 
+#define time_op(op) \
+        start = std::chrono::high_resolution_clock::now(); \
+        op; \
+        end = std::chrono::high_resolution_clock::now(); \
+        diff = end-start; \
+        std::cout << "Line " << __LINE__ << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(diff).count() << " ms" << std::endl; \
+
+auto start = std::chrono::high_resolution_clock::now();
+auto end = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> diff; \
+
 #define CHECK_CUDA(call)                                               \
     {                                                                  \
         cudaError_t status = (call);                                   \
@@ -114,116 +125,56 @@ thrust::device_vector<int> get_c3_v3(const d_cusparse_csr& A) {
 
     int *d_c3_ptr = d_c3.data().get();
 
-    const int threads_per_block = 256;
-    const int blocks = (n + threads_per_block - 1) / threads_per_block / 10;
+    const int SmSize = 16;
+    const int threadsPerBlock = 256;
+    const int threadsPerSM = threadsPerBlock * SmSize;
 
-    c3_kernel<<<blocks, threads_per_block>>>(d_A_offs, d_A_pos, d_c3_ptr, n);
+    const int FullSMs = (n + threadsPerSM - 1) / threadsPerSM;
+
+    c3_kernel<<<SmSize*FullSMs, threadsPerBlock>>>(d_A_offs, d_A_pos, d_c3_ptr, n);
 
     return d_c3;
 }
 
-thrust::device_vector<
-    thrust::device_vector<float>
-> fglt(const h_csr& h_A) {
-    const int n = h_A.rows;
-
-    cusparseHandle_t handle;
-    CHECK_CUSPARSE(cusparseCreate(&handle))
-
-    d_cusparse_csr d_A(h_A);
-    /*
-                CALCULATE p1
-    */
-    thrust::device_vector<float> d_p1(n);
-    // make a copy of d_A_offs but with floats, because cusparse only accepts floats
-    thrust::device_vector<float> d_A_offs_float(d_A.get_offsets());
-
-    // adjecent difference
-    thrust::transform(
-        d_A_offs_float.begin() + 1, d_A_offs_float.end(),
-        d_A_offs_float.begin(), // d_A_offs_float.end()-1,
-        d_p1.begin(),
-        thrust::minus<float>()
-    );
-
-    /*
-                CALCULATE c3
-    */
-
-    thrust::device_vector<int> d_c3_int = get_c3_v3(d_A);
-    thrust::device_vector<float> d_c3(d_c3_int);
-
-    /*
-                CALCULATE p2
-    */
-    thrust::device_vector<float> d_Ap1 = d_cusparse_csr::multiply(d_A, d_p1, handle);
-    thrust::device_vector<float> d_p2(n);
-    thrust::transform(
-        d_Ap1.begin(), d_Ap1.end(),
-        d_p1.begin(),
-        d_p2.begin(),
-        thrust::minus<float>()
-    );
-
-    /*
-                CALCULATE d2
-    */
-    thrust::device_vector<float> d_d2(n);
-    thrust::transform(
-        d_p2.begin(),
-        d_p2.end(),
-        d_c3.begin(),
-        d_d2.begin(),
-        d2_trans()
-    );
-
-    /*
-                CALCULATE d3
-    */
-    thrust::device_vector<float> d_d3(n);
-    thrust::transform(
-        d_p1.begin(),
-        d_p1.end(),
-        d_c3.begin(),
-        d_d3.begin(),
-        d3_trans()
-    );
-
-    return {};
-}
-
-thrust::device_vector<
+thrust::host_vector<
     thrust::device_vector<float>
 > fglt(const d_cusparse_csr& d_A) {
+    time_op(
     cusparseHandle_t handle;
     CHECK_CUSPARSE(cusparseCreate(&handle))
+    )
 
     const int n = d_A.get_rows();
     /*
                 CALCULATE p1
     */
+    time_op(
     thrust::device_vector<float> d_p1(n);
     // make a copy of d_A_offs but with floats, because cusparse only accepts floats
     thrust::device_vector<float> d_A_offs_float(d_A.get_offsets());
-
+)
     // adjecent difference
+    time_op(
     thrust::transform(
         d_A_offs_float.begin() + 1, d_A_offs_float.end(),
         d_A_offs_float.begin(), // d_A_offs_float.end()-1,
         d_p1.begin(),
         thrust::minus<float>()
-    );
-
+    )
+    )
     /*
                 CALCULATE c3
     */
 
+    time_op(
     thrust::device_vector<int> d_c3_int = get_c3_v3(d_A);
     thrust::device_vector<float> d_c3(d_c3_int);
+    )
 
     /*
                 CALCULATE p2
     */
+time_op(
     thrust::device_vector<float> d_Ap1 = d_cusparse_csr::multiply(d_A, d_p1, handle);
     thrust::device_vector<float> d_p2(n);
     thrust::transform(
@@ -232,10 +183,11 @@ thrust::device_vector<
         d_p2.begin(),
         thrust::minus<float>()
     );
-
+)
     /*
                 CALCULATE d2
     */
+time_op(
     thrust::device_vector<float> d_d2(n);
     thrust::transform(
         d_p2.begin(),
@@ -244,10 +196,11 @@ thrust::device_vector<
         d_d2.begin(),
         d2_trans()
     );
-
+)
     /*
                 CALCULATE d3
     */
+   time_op(
     thrust::device_vector<float> d_d3(n);
     thrust::transform(
         d_p1.begin(),
@@ -255,9 +208,17 @@ thrust::device_vector<
         d_c3.begin(),
         d_d3.begin(),
         d3_trans()
-    );
+    )
+    )
 
-    return {};
+    time_op(
+    thrust::host_vector<thrust::device_vector<float>> return_vector(4);
+    return_vector.push_back(std::move(d_p1));
+    return_vector.push_back(std::move(d_p2));
+    return_vector.push_back(std::move(d_d3));
+    return_vector.push_back(std::move(d_c3));
+    )
+    return return_vector;
 }
 #define computeType CUDA_R_32F
 
@@ -277,8 +238,8 @@ int main(int argc, char *argv[])
     std::cout << "A = \n";
     printCSR(h_A);
 
-    const d_cusparse_csr d_A(h_A);
     t1 = std::chrono::high_resolution_clock::now();
+    const d_cusparse_csr d_A(h_A);
     fglt(d_A);
     t2 = std::chrono::high_resolution_clock::now();
     std::cout << "Time taken to compute the fglt: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms" << std::endl;
