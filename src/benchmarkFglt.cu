@@ -53,7 +53,54 @@ struct d2_trans
         return (lhs) - 2 * rhs;
     }
 };
-thrust::device_vector<float> fglt(const h_csr& h_A) {
+
+void get_c3_v2_3(const h_csr &A, int *c3)
+{  
+  std::fill(c3, c3 + A.get_rows(), 0);
+
+  for (int i = 0; i < A.get_rows(); i++)
+  {
+    const int i_nb_start = A.offsets[i];
+    const int i_nb_end = A.offsets[i + 1];
+
+    for (int i_nb_idx = i_nb_start; i_nb_idx < i_nb_end; i_nb_idx++)
+    {
+      const int j = A.positions[i_nb_idx];
+      if (i < j) break;
+
+      const int j_nb_start = A.offsets[j];
+      const int j_nb_end = A.offsets[j + 1];
+
+      int _i_nb_idx = i_nb_start;
+      int _j_nb_idx = j_nb_start;
+
+      while (_i_nb_idx < i_nb_end && _j_nb_idx < j_nb_end)
+      {
+        const int _i_nb_pos = A.positions[_i_nb_idx];
+        const int _j_nb_pos = A.positions[_j_nb_idx];
+
+        if(_i_nb_pos > i || _j_nb_pos > j) break;
+
+        if (_i_nb_pos > _j_nb_pos)
+        {
+          _j_nb_idx++;
+        }
+        else if (_i_nb_pos < _j_nb_pos)
+        {
+          _i_nb_idx++;
+        }
+        else
+        {
+          c3[i]++, c3[j]++, c3[_i_nb_pos]++,  _i_nb_idx++, _j_nb_idx++;
+        }
+      }
+    }
+  }
+}
+
+thrust::device_vector<
+    thrust::device_vector<float>
+> fglt(const h_csr& h_A) {
     const int n = h_A.rows;
 
     cusparseHandle_t handle;
@@ -61,14 +108,10 @@ thrust::device_vector<float> fglt(const h_csr& h_A) {
 
     d_cusparse_csr d_A(h_A);
     /*
-                A_2 = A*A COMPUTATION
-    */
-    d_cusparse_csr d_A2 = d_cusparse_csr::multiply(d_A, d_A, handle);
-    /*
                 CALCULATE p1
     */
     thrust::device_vector<float> d_p1(n);
-    // make a copy of d_A_offs but with floats
+    // make a copy of d_A_offs but with floats, because cusparse only accepts floats
     thrust::device_vector<float> d_A_offs_float(d_A.get_offsets());
 
     // adjecent difference
@@ -80,23 +123,17 @@ thrust::device_vector<float> fglt(const h_csr& h_A) {
     );
 
     /*
-            HADAMARD PRODUCT OF A2 * A
-    */
-    h_csr h_A2(d_A2);
-    h_csr h_C3 = h_csr::hadamard(h_A, h_A2);
-
-    // copy to device
-    d_cusparse_csr d_C3(h_C3);
-    /*
                 CALCULATE c3
     */
-    thrust::device_vector<float> d_e(n, 1.0f);
-    thrust::device_vector<float> d_c3 = d_cusparse_csr::multiply(d_C3, d_e, handle, 0.5f, 0.0f);
+
+    thrust::host_vector<int> h_c3(n);
+    get_c3_v2_3(h_A, h_c3.data());
+    thrust::device_vector<int> d_c3 = h_c3;
+
     /*
                 CALCULATE p2
     */
     thrust::device_vector<float> d_Ap1 = d_cusparse_csr::multiply(d_A, d_p1, handle);
-
     thrust::device_vector<float> d_p2(n);
     thrust::transform(
         d_Ap1.begin(), d_Ap1.end(),
@@ -104,6 +141,7 @@ thrust::device_vector<float> fglt(const h_csr& h_A) {
         d_p2.begin(),
         thrust::minus<float>()
     );
+
     /*
                 CALCULATE d2
     */
@@ -113,7 +151,9 @@ thrust::device_vector<float> fglt(const h_csr& h_A) {
         d_p2.end(),
         d_c3.begin(),
         d_d2.begin(),
-        d2_trans());
+        d2_trans()
+    );
+
     /*
                 CALCULATE d3
     */
@@ -123,12 +163,8 @@ thrust::device_vector<float> fglt(const h_csr& h_A) {
         d_p1.end(),
         d_c3.begin(),
         d_d3.begin(),
-        d3_trans());
-
-    std::cout << "d1 = " << d_p1;
-    std::cout << "d2 = " << d_d2;
-    std::cout << "d3 = " << d_d3;
-    std::cout << "d4 = " << d_c3;
+        d3_trans()
+    );
 
     return {};
 }
