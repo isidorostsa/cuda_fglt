@@ -8,6 +8,7 @@
 
 #include "host_structs.hpp"
 #include "device_csr_wrapper.hpp"
+#include "device_csr.hpp"
 
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const thrust::host_vector<T> &vec)
@@ -140,3 +141,4 @@ void printCSR(const thrust::device_vector<int> &offsetsCSR, const thrust::device
 // special case for h_csr and d_csr
 void printCSR(const h_csr &csr);
 void printCSR(const d_cusparse_csr &csr);
+void printCSR(const d_csr &csr);
