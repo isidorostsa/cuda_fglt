@@ -12,19 +12,19 @@
         },
         {
             "preLaunchTask": "build_debug",
-            "name": "CUDA C++: Debug Test",
+            "name": "CUDA C++: Debug Benchmark",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin_debug/test",
-            "args": "/work_dir/datasets/s6.mtx"
+            "program": "${workspaceFolder}/bin_debug/benchmarkFglt",
+            "args": "/cuda_project/datasets/com-Youtube.mtx"
         },
         {
             "preLaunchTask": "build_debug",
-            "name": "CUDA C++: Debug fglt_native",
+            "name": "CUDA C++: Debug SteFGlT",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin_debug/fglt_native",
-            "args": "4"
+            "program": "${workspaceFolder}/bin_debug/stefglt",
+            "args": "/cuda_project/datasets/delaunay_n10.mtx"
         }
     ]
 }

@@ -1,6 +1,5 @@
 bin/*
 bin_debug/*
-datasets/auto/auto.mtx
 obj/*
 obj/common/*
 obj_debug/*
@@ -12,3 +11,8 @@ tmp
 .vscode/settings.json
 .vscode/c_cpp_properties.json
 .gitignore
+*.mtx
+src/grid_stride_test.cu
+src/read_write_bench.cu
+src/test.cu
+src/thrustBenchmarks.cu
