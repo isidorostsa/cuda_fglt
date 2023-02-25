@@ -12,16 +12,6 @@ struct h_coo {
     thrust::host_vector<int> Aj;
 };
 
-struct h_symm_csr {
-    int n, nnz;
-
-    thrust::host_vector<int> offsets;
-    thrust::host_vector<int> positions;
-    thrust::host_vector<float> values;
-
-    int real_nnz();
-};
-
 struct h_csr {
     int rows;
     int cols;

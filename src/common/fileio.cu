@@ -10,40 +10,6 @@
 #pragma GCC diagnostic ignored "-Wformat-security"
 #pragma GCC diagnostic ignored "-Wunused-result"
 
-h_coo loadFileToCoo(const std::string& filename)
-{
-    // check if file exists
-    if(!std::ifstream(filename).good()) {
-        std::cout << "File " << filename << " does not exist" << std::endl;
-        exit(1);
-    }
-
-    std::ifstream fin(filename);
-
-    int n, nnz;
-    while (fin.peek() == '%')
-        fin.ignore(2048, '\n');
-
-    fin >> n >> n >> nnz;
-
-    thrust::host_vector<int> Ai(nnz);
-    thrust::host_vector<int> Aj(nnz);
-
-    int throwaway;
-    // lines may be of the form: i j or i j throwaway
-    for (int i = 0; i < nnz; ++i)
-    {
-        fin >> Ai[i] >> Aj[i];
-        Ai[i]--;
-        Aj[i]--;
-        if (fin.peek() != '\n')
-            fin >> throwaway;
-    }
-
-    // automatically moves the vectors, no copying is done here
-    return h_coo{n, nnz, std::move(Ai), std::move(Aj)};
-}
-
 h_coo loadSymmFileToCoo(const std::string& filename)
 {
     std::ifstream fin(filename);
@@ -85,69 +51,6 @@ h_coo loadSymmFileToCoo(const std::string& filename)
 
     // automatically moves the vectors, no copying is done here
     return h_coo{n, 2*nnz, std::move(Ai), std::move(Aj)};
-}
-
-h_csr loadFileToCsr(const std::string& filename)
-{
-    // check file exists
-    if (!std::ifstream(filename).good())
-    {
-        std::cout << "File " << filename << " does not exist" << std::endl;
-        exit(1);
-    }
-
-    FILE *fin = fopen(filename.c_str(), "r");
-
-    std::cout << "Opened " << filename << std::endl;
-
-    while (fgetc(fin) == '%')
-    {
-        while (fgetc(fin) != '\n')
-        {
-            // do nothing
-        };
-    } // put last character back
-    fseek(fin, -1, SEEK_CUR);
-
-    int n, nnz;
-    if(fscanf(fin, "%d %d %d", &n, &n, &nnz) < 3) {
-        std::cout << "Error reading file " << filename << std::endl;
-        exit(1);
-    }
-    thrust::host_vector<int> offsets(n + 1, 0);
-    thrust::host_vector<int> positions(nnz);
-
-    int i, j;
-    // lines may be of the form: i j or i j throwaway where throwaway can be any number of characters until a newline
-    for (int ind = 0; ind < nnz; ++ind)
-    {
-        if(fscanf(fin, "%d %d", &i, &j) < 2) {
-            std::cout << "Error reading file " << filename << std::endl;
-            exit(1);
-        }
-        --i;
-        --j;
-
-        positions[ind] = i;
-        offsets[j + 1]++;
-
-        // skip the rest of the line
-        // unless we are at the end of the file
-        if (ind < nnz - 1)
-        {
-            while (fgetc(fin) != '\n')
-            {
-            }
-        }
-    }
-
-    for (int i = 0; i < n; ++i)
-    {
-        offsets[i + 1] += offsets[i];
-    }
-
-    // automatically moves the vectors, no copying is done here
-    return h_csr(n, n, nnz, std::move(offsets), std::move(positions), thrust::host_vector<float>(nnz, 1.0f));
 }
 
 h_csr coo_to_csr(const h_coo &coo)

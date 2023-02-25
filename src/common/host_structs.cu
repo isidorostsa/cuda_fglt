@@ -1,11 +1,6 @@
 #include "host_structs.hpp"
 #include "printing.hpp"
 
-int h_symm_csr::real_nnz()
-{
-    return 2 * nnz;
-}
-
 /* Cool but not used
 h_csr::operator d_cusparse_csr() const{
     return d_cusparse_csr(rows, cols, nnz, offsets, positions, values);
