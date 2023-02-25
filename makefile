@@ -7,7 +7,7 @@ SRC_DIR := src
 PROGRAM_NAME := $(BIN_DIR)/fglt
 
 # Set the appropriate compile/link flags
-CFLAGS := -rdc=true
+CFLAGS :=
 LFLAGS :=  
 GENERAL_FLAGS := -std=c++17 --compiler-options -Wall
 
