@@ -11,11 +11,12 @@
 #include "common/printing.hpp"
 #include "common/device_csr.hpp"
 
-#define time_op(name, op) \
-        start = std::chrono::high_resolution_clock::now(); \
-        op; \
-        end = std::chrono::high_resolution_clock::now(); \
-        std::cout << name << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << " ms" << std::endl;
+#define TIME_OP(NAME, OP) \
+      T_START = std::chrono::high_resolution_clock::now(); \
+      OP; \
+      T_END = std::chrono::high_resolution_clock::now(); \
+      std::cout << NAME << " took " << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0 << " ms" << std::endl;
+      //   printf("%s took %f ms\n", NAME,  (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0);
 
 struct d3_trans
 {
@@ -104,97 +105,65 @@ thrust::device_vector<COMPUTE_TYPE> get_c3_v3(const d_csr& A) {
     const int FullSMs = (n + threadsPerSM - 1) / threadsPerSM;
 
     c3_kernel<<<SmSize*FullSMs, threadsPerBlock>>>(d_A_offs, d_A_pos, d_c3_ptr, n);
-    // c3_kernel<<<1, 1>>>(d_A_offs, d_A_pos, d_c3_ptr, n);
     cudaDeviceSynchronize();
 
     return d_c3;
 }
 
-thrust::host_vector<
-    thrust::device_vector<COMPUTE_TYPE>
-> fglt(const d_csr& d_A) {
-
-    std::chrono::system_clock::time_point start;
-    std::chrono::system_clock::time_point end;
+thrust::host_vector< thrust::device_vector<COMPUTE_TYPE> > fglt(const d_csr& d_A) {
+    std::chrono::system_clock::time_point T_START, T_END;
 
     const int n = d_A.get_rows();
-    /*
-                CALCULATE p1
-    */
-time_op("p1",
+
+TIME_OP("p1",
     thrust::device_vector<COMPUTE_TYPE> d_p1(n);
-    // adjecent difference
     thrust::transform(
         d_A.offsets.begin() + 1, d_A.offsets.end(),
-        d_A.offsets.begin(), // d_A_offs_COMPUTE_TYPE.end()-1,
-        d_p1.begin(),
+        d_A.offsets.begin(), d_p1.begin(),
         thrust::minus<COMPUTE_TYPE>()
     )
-)
-    /*
-                CALCULATE c3
-    */
-
-time_op("c3",
+);
+TIME_OP("c3",
     thrust::device_vector<COMPUTE_TYPE> d_c3 = get_c3_v3(d_A);
-)
-
-    /*
-                CALCULATE p2
-    */
-time_op("p2",
+);
+TIME_OP("p2",
     thrust::device_vector<COMPUTE_TYPE> d_Ap1 = d_csr::spmv_symbolic(d_A, d_p1);
     thrust::device_vector<COMPUTE_TYPE> d_p2(n);
     thrust::transform(
         d_Ap1.begin(), d_Ap1.end(),
-        d_p1.begin(),
-        d_p2.begin(),
+        d_p1.begin(), d_p2.begin(),
         thrust::minus<COMPUTE_TYPE>()
     );
-)
-    /*
-                CALCULATE d2
-    */
-time_op("d2",
+);
+TIME_OP("d2",
     thrust::device_vector<COMPUTE_TYPE> d_d2(n);
     thrust::transform(
-        d_p2.begin(),
-        d_p2.end(),
-        d_c3.begin(),
-        d_d2.begin(),
+        d_p2.begin(), d_p2.end(),
+        d_c3.begin(), d_d2.begin(),
         d2_trans()
     );
-)
-    /*
-                CALCULATE d3
-    */
-time_op("d3",
+);
+TIME_OP("d3",
     thrust::device_vector<COMPUTE_TYPE> d_d3(n);
     thrust::transform(
-        d_p1.begin(),
-        d_p1.end(),
-        d_c3.begin(),
-        d_d3.begin(),
+        d_p1.begin(), d_p1.end(),
+        d_c3.begin(), d_d3.begin(),
         d3_trans()
     );
-)
-
-    cudaDeviceSynchronize();
-
-time_op("return vectors creation",
+);
+TIME_OP("return vectors creation",
     thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
     return_vector.push_back(std::move(d_p1));
     return_vector.push_back(std::move(d_p2));
     return_vector.push_back(std::move(d_d3));
     return_vector.push_back(std::move(d_c3));
-)
+);
     return return_vector;
 }
 
 int main(int argc, char *argv[])
 {
-    std::chrono::system_clock::time_point start;
-    std::chrono::system_clock::time_point end;
+    std::chrono::system_clock::time_point T_START, T_END;
 
     if(argc != 2) {
         std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
@@ -202,18 +171,18 @@ int main(int argc, char *argv[])
     }
     std::string filename(argv[1]); 
 
-    time_op("Loading the file",
+    TIME_OP("Loading the file",
         const h_csr h_A = loadSymmFileToCsr(filename);
-    )
+    );
 
     std::cout << "A = \n";
     printCSR(h_A);
 
-    time_op("Moving the matrix to the device",
+    TIME_OP("Moving the matrix to the device",
         const d_csr d_A(h_A);
-    )
+    );
 
-    time_op("The whole fglt",
+    TIME_OP("The whole fglt",
         thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> h_fglt = fglt(d_A);
-    )
+    );
 }
