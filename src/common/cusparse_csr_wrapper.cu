@@ -4,7 +4,7 @@
 #include <cusparse.h>
 #include <thrust/device_vector.h>
 
-#include "device_csr_wrapper.hpp"
+#include "cusparse_csr_wrapper.hpp"
 
 #define CHECK_CUSPARSE(call)                                                                           \
     {                                                                                                  \

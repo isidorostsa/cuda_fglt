@@ -7,7 +7,7 @@
 #include <thrust/device_vector.h>
 
 #include "host_structs.hpp"
-#include "device_csr_wrapper.hpp"
+#include "cusparse_csr_wrapper.hpp"
 #include "device_csr.hpp"
 
 template <typename T>

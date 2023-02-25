@@ -1,6 +1,6 @@
 #include "printing.hpp"
 #include "host_structs.hpp"
-#include "device_csr_wrapper.hpp"
+#include "cusparse_csr_wrapper.hpp"
 #include "device_csr.hpp"
 
 void printCSR(const h_csr &csr)

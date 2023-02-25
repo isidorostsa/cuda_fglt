@@ -181,7 +181,7 @@ time_op("d3",
 
     cudaDeviceSynchronize();
 
-time_op("return vectors move",
+time_op("return vectors creation",
     thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
     return_vector.push_back(std::move(d_p1));
     return_vector.push_back(std::move(d_p2));

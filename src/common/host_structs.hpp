@@ -1,7 +1,7 @@
 #pragma once
 
 #include <thrust/host_vector.h>
-#include "device_csr_wrapper.hpp"
+#include "cusparse_csr_wrapper.hpp"
 
 class d_cusparse_csr;
 

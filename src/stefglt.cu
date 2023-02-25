@@ -6,7 +6,7 @@
 
 #include "common/fileio.hpp"
 
-#include "common/device_csr_wrapper.hpp"
+#include "common/cusparse_csr_wrapper.hpp"
 #include "common/host_structs.hpp"
 
 template <typename F>
