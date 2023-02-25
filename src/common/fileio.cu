@@ -110,7 +110,10 @@ h_csr loadFileToCsr(const std::string& filename)
     fseek(fin, -1, SEEK_CUR);
 
     int n, nnz;
-    fscanf(fin, "%d %d %d", &n, &n, &nnz);
+    if(fscanf(fin, "%d %d %d", &n, &n, &nnz) < 3) {
+        std::cout << "Error reading file " << filename << std::endl;
+        exit(1);
+    }
     thrust::host_vector<int> offsets(n + 1, 0);
     thrust::host_vector<int> positions(nnz);
 
@@ -118,7 +121,10 @@ h_csr loadFileToCsr(const std::string& filename)
     // lines may be of the form: i j or i j throwaway where throwaway can be any number of characters until a newline
     for (int ind = 0; ind < nnz; ++ind)
     {
-        fscanf(fin, "%d %d", &i, &j);
+        if(fscanf(fin, "%d %d", &i, &j) < 2) {
+            std::cout << "Error reading file " << filename << std::endl;
+            exit(1);
+        }
         --i;
         --j;
 
