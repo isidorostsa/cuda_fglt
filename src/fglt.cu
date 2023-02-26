@@ -151,6 +151,7 @@ TIME_OP("d3",
         d3_trans()
     );
 );
+
 TIME_OP("return vectors creation",
     thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
     return_vector.push_back(std::move(d_p1));
@@ -158,6 +159,13 @@ TIME_OP("return vectors creation",
     return_vector.push_back(std::move(d_d3));
     return_vector.push_back(std::move(d_c3));
 );
+
+    size_t result_checksum = 0;
+    for(auto& res: return_vector) {
+        result_checksum += thrust::reduce(res.begin(), res.end());
+    }
+    std::cout << "Result hash: " << (result_checksum % 1000) << "\n";
+
     return return_vector;
 }
 
@@ -185,4 +193,5 @@ int main(int argc, char *argv[])
     TIME_OP("The whole fglt",
         thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> h_fglt = fglt(d_A);
     );
+
 }
