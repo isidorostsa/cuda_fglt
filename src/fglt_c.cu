@@ -6,29 +6,12 @@
 #include "common/host_structs.hpp"
 #include "common/fileio.hpp"
 
-// #define TIME_OP(NAME, OP)\
-//   clock_gettime(CLOCK_MONOTONIC, &T_START); \
-//   OP; \
-//   clock_gettime(CLOCK_MONOTONIC, &T_END); \
-//   {double t_elapsed = (double)(T_END.tv_sec - T_START.tv_sec) * 1000 + (double)(T_END.tv_nsec - T_START.tv_nsec) / 1000000; \
-//   printf("%s took %f ms\n", NAME,  t_elapsed);};
-
 #define TIME_OP(NAME, OP) \
       T_START = std::chrono::high_resolution_clock::now(); \
       OP; \
       T_END = std::chrono::high_resolution_clock::now(); \
       printf("%s took %f ms\n", NAME,  (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0);
-      // std::cout << name << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(T_END-T_START).count() << " ms" << std::endl;
-
-
-#define TIMER_START \
-  clock_gettime(CLOCK_MONOTONIC, &T_START);
-
-#define TIMER_STOP(NAME) \
-  clock_gettime(CLOCK_MONOTONIC, &T_END); \
-  {double t_elapsed = (double)(T_END.tv_sec - T_START.tv_sec) * 1000 + (double)(T_END.tv_nsec - T_START.tv_nsec) / 1000000; \
-  printf("%s took %f ms\n", NAME,  t_elapsed);}
-
+      // std::cout << name << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(T_END-T_START).count() << " ms" << std::endl;W
 
 
 __global__

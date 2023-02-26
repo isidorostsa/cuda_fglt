@@ -111,7 +111,7 @@ thrust::device_vector<COMPUTE_TYPE> get_c3_v3(const d_csr& A) {
 }
 
 thrust::host_vector< thrust::device_vector<COMPUTE_TYPE> > fglt(const d_csr& d_A) {
-    std::chrono::system_clock::time_point T_START, T_END;
+    std::chrono::high_resolution_clock::time_point T_START, T_END;
 
     const int n = d_A.get_rows();
 
@@ -171,7 +171,7 @@ TIME_OP("return vectors creation",
 
 int main(int argc, char *argv[])
 {
-    std::chrono::system_clock::time_point T_START, T_END;
+    std::chrono::high_resolution_clock::time_point T_START, T_END;
 
     if(argc != 2) {
         std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
