@@ -8,22 +8,14 @@
             "type": "cuda-gdb",
             "request": "launch",
             "program": "${workspaceFolder}/bin_debug/fglt",
-            "args": "/work_dir/datasets/s6.mtx"
+            "args": "/cuda_project/datasets/delaunay_n10.mtx"
         },
         {
             "preLaunchTask": "build_debug",
-            "name": "CUDA C++: Debug Benchmark",
+            "name": "CUDA C++: Debug FGLT_C",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin_debug/benchmarkFglt",
-            "args": "/cuda_project/datasets/com-Youtube.mtx"
-        },
-        {
-            "preLaunchTask": "build_debug",
-            "name": "CUDA C++: Debug SteFGlT",
-            "type": "cuda-gdb",
-            "request": "launch",
-            "program": "${workspaceFolder}/bin_debug/stefglt",
+            "program": "${workspaceFolder}/bin_debug/fglt_c",
             "args": "/cuda_project/datasets/delaunay_n10.mtx"
         }
     ]
