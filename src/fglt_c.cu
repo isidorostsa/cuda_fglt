@@ -190,7 +190,7 @@ void fglt(h_csr* h_A){
   );
   
   // // Validate Result
-  // int s0=0, s1=0, s2=0, s3=0, s4=0;
+  // size_t s0=0, s1=0, s2=0, s3=0, s4=0;
   // for(int i=0; i<h_A->get_rows(); i++){
   //   s0 += h_d0[i];
   //   s1 += h_d1[i];

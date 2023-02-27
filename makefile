@@ -1,4 +1,4 @@
-CC=nvcc
+CC = nvcc
 
 BIN_DIR := bin
 OBJ_DIR := obj
@@ -7,9 +7,9 @@ SRC_DIR := src
 PROGRAM_NAME := $(BIN_DIR)/fglt
 
 # Set the appropriate compile/link flags
-CFLAGS :=
-LFLAGS :=  
-GENERAL_FLAGS := -std=c++17 --compiler-options -Wall
+CFLAGS := 
+LFLAGS := 
+GENERAL_FLAGS := -std=c++14 --compiler-options -Wall -Xcompiler -fopenmp
 
 BUILD_TYPE ?= release
 BUILD_ENV ?= container
