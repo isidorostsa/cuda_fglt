@@ -172,18 +172,26 @@ thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> fglt(const d_csr &d_A)
             );
         }
     );
+
+    taskflow.name("fglt");
+
+    P1.name("p1");
+    AP1.name("Ap1");
+    P2.name("p2");
+    C3.name("c3");
+    D2.name("d2");
+    D3.name("d3");
  
     P1.precede(AP1, P2, D3); 
     AP1.precede(P2);
  
     D2.succeed(P2, C3);
-    D3.succeed(P1, C3);
+    D3.succeed(C3);
  
     // print the execution plan
     taskflow.dump(std::cout);
  
     executor.run(taskflow).wait();
- 
  
     thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
     return_vector.push_back(std::move(d_p1));
