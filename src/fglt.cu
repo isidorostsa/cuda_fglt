@@ -7,9 +7,12 @@
 #include <thrust/device_vector.h>
 #include <thrust/transform.h>
 
+#include <taskflow.hpp>
+
 #include "common/fileio.hpp"
 #include "common/printing.hpp"
 #include "common/device_csr.hpp"
+
 
 #define TIME_OP(NAME, OP) \
       T_START = std::chrono::high_resolution_clock::now(); \
@@ -110,64 +113,95 @@ thrust::device_vector<COMPUTE_TYPE> get_c3_v3(const d_csr& A) {
     return d_c3;
 }
 
-thrust::host_vector< thrust::device_vector<COMPUTE_TYPE> > fglt(const d_csr& d_A) {
+thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> fglt(const d_csr &d_A)
+{
     std::chrono::high_resolution_clock::time_point T_START, T_END;
-
+ 
     const int n = d_A.get_rows();
-
-TIME_OP("p1",
-    thrust::device_vector<COMPUTE_TYPE> d_p1(n);
-    thrust::transform(
-        d_A.offsets.begin() + 1, d_A.offsets.end(),
-        d_A.offsets.begin(), d_p1.begin(),
-        thrust::minus<COMPUTE_TYPE>()
-    )
-);
-TIME_OP("c3",
-    thrust::device_vector<COMPUTE_TYPE> d_c3 = get_c3_v3(d_A);
-);
-TIME_OP("p2",
-    thrust::device_vector<COMPUTE_TYPE> d_Ap1 = d_csr::spmv_symbolic(d_A, d_p1);
-    thrust::device_vector<COMPUTE_TYPE> d_p2(n);
-    thrust::transform(
-        d_Ap1.begin(), d_Ap1.end(),
-        d_p1.begin(), d_p2.begin(),
-        thrust::minus<COMPUTE_TYPE>()
+ 
+    tf::Executor executor;
+    tf::Taskflow taskflow;
+ 
+    thrust::device_vector<COMPUTE_TYPE> d_p1;
+    thrust::device_vector<COMPUTE_TYPE> d_Ap1;
+    thrust::device_vector<COMPUTE_TYPE> d_p2;
+    thrust::device_vector<COMPUTE_TYPE> d_c3;
+    thrust::device_vector<COMPUTE_TYPE> d_d2;
+    thrust::device_vector<COMPUTE_TYPE> d_d3;
+ 
+    auto [P1, AP1, P2, C3, D2, D3] = taskflow.emplace( // create four tasks
+        [&]()
+        {
+            d_p1.resize(n);
+            thrust::transform(
+                d_A.offsets.begin() + 1, d_A.offsets.end(),
+                d_A.offsets.begin(), d_p1.begin(),
+                thrust::minus<COMPUTE_TYPE>());
+        },
+        [&]()
+        {
+            d_Ap1 = d_csr::spmv_symbolic(d_A, d_p1);
+        },
+        [&]()
+        {
+            d_p2.resize(n);
+            thrust::transform(
+                d_Ap1.begin(), d_Ap1.end(),
+                d_p1.begin(), d_p2.begin(),
+                thrust::minus<COMPUTE_TYPE>());
+        },
+        [&]()
+        {
+            d_c3 = get_c3_v3(d_A);
+        },
+        [&]()
+        {
+            d_d2.resize(n);
+            thrust::transform(
+                d_p2.begin(), d_p2.end(),
+                d_c3.begin(), d_d2.begin(),
+                d2_trans());
+        },
+        [&]()
+        {
+            d_d3.resize(n);
+            thrust::transform(
+                d_p1.begin(), d_p1.end(),
+                d_c3.begin(), d_d3.begin(),
+                d3_trans()
+            );
+        }
     );
-);
-TIME_OP("d2",
-    thrust::device_vector<COMPUTE_TYPE> d_d2(n);
-    thrust::transform(
-        d_p2.begin(), d_p2.end(),
-        d_c3.begin(), d_d2.begin(),
-        d2_trans()
-    );
-);
-TIME_OP("d3",
-    thrust::device_vector<COMPUTE_TYPE> d_d3(n);
-    thrust::transform(
-        d_p1.begin(), d_p1.end(),
-        d_c3.begin(), d_d3.begin(),
-        d3_trans()
-    );
-);
-
-TIME_OP("return vectors creation",
+ 
+    P1.precede(AP1, P2, D3); 
+    AP1.precede(P2);
+ 
+    D2.succeed(P2, C3);
+    D3.succeed(P1, C3);
+ 
+    // print the execution plan
+    taskflow.dump(std::cout);
+ 
+    executor.run(taskflow).wait();
+ 
+ 
     thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
     return_vector.push_back(std::move(d_p1));
     return_vector.push_back(std::move(d_p2));
     return_vector.push_back(std::move(d_d3));
     return_vector.push_back(std::move(d_c3));
-);
-
+ 
     size_t result_checksum = 0;
-    for(auto& res: return_vector) {
+    for (auto &res : return_vector)
+    {
         result_checksum += thrust::reduce(res.begin(), res.end());
     }
     std::cout << "Result hash: " << (result_checksum % 1000) << "\n";
-
+ 
     return return_vector;
-}
+
+    }
+
 
 int main(int argc, char *argv[])
 {
