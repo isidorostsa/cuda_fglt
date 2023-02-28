@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
     thrust::device_vector<int> warm_up_cuda(100);
 
     TIME_OP("HOST_TO_DEVICE",
-        const d_csr d_A(h_A, false); // do not copy the data
+        const d_csr d_A(h_A, false); // do not copy the values
     );
 
     TIME_OP("FGLT",
