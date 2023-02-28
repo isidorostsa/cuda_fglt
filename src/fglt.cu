@@ -193,8 +193,10 @@ int main(int argc, char *argv[])
         printCSR(h_A);
     }
 
+    thrust::device_vector<int> cuda_warmup(100);
+
     TIME_OP("HOST_TO_DEVICE",
-        const d_csr d_A(h_A);
+        const d_csr d_A(h_A, false);
     );
 
     TIME_OP("FGLT",
