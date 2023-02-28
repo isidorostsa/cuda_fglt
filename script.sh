@@ -6,8 +6,8 @@
 #SBATCH --time=15:00
 
 module purge
-module load gcc
-module load cuda
+module load gcc/9.2.0
+module load cuda/11.1.0
 make clean
 make
 
