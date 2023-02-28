@@ -1,3 +1,13 @@
+# How to run on AUTH's HPC
+
+1) First edit the `ASSETS` variable inside the `script.sh` to point a directory
+that contains all the graph files (`auto.mtx  com-Youtube.mtx  delaunay_n22.mtx great-britain_osm.mtx  s12.mtx`).
+
+2) Then run `sbatch ./script.sh`
+
+3) Finally you will get a `slurm-jobid.out` file that contains 3 runs from each
+graphs (the time metric is microseconds).
+
 # Commands make the project
 
 ## Prerequisites
