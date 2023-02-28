@@ -217,8 +217,6 @@ void fglt(h_csr* h_A){
   cudaFree(d_A_positions);
 }
 
-
-
 int main(int argc, char *argv[]) {
 
   // Initialize cuda context
