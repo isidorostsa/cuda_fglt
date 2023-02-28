@@ -13,13 +13,17 @@
 #include "common/printing.hpp"
 #include "common/device_csr.hpp"
 
+#define PRINT_HPC 1
 
 #define TIME_OP(NAME, OP) \
       T_START = std::chrono::high_resolution_clock::now(); \
       OP; \
       T_END = std::chrono::high_resolution_clock::now(); \
-      std::cout << NAME << " took " << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0 << " ms" << std::endl;
-      //   printf("%s took %f ms\n", NAME,  (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0);
+      if(PRINT_HPC) {\
+        if (std::string(NAME) == "HOST_TO_DEVICE" || std::string(NAME) == "FGLT" || std::string(NAME) == "DEVICE_TO_HOST")\
+            std::cout << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count() << '\t'; \
+      }\
+      else std::cout << NAME << " took " << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0 << " ms" << std::endl;
 
 struct d3_trans
 {
@@ -115,19 +119,19 @@ thrust::device_vector<COMPUTE_TYPE> get_c3_v3(const d_csr& A) {
 
 thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> fglt(const d_csr &d_A)
 {
-    std::chrono::high_resolution_clock::time_point T_START, T_END;
- 
     const int n = d_A.get_rows();
  
     tf::Executor executor;
     tf::Taskflow taskflow;
- 
-    thrust::device_vector<COMPUTE_TYPE> d_p1;
+
+    thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
+    thrust::device_vector<COMPUTE_TYPE>& d_p1 = return_vector[0];
+    thrust::device_vector<COMPUTE_TYPE>& d_d2 = return_vector[1];
+    thrust::device_vector<COMPUTE_TYPE>& d_d3 = return_vector[2];
+    thrust::device_vector<COMPUTE_TYPE>& d_c3 = return_vector[3];
+
     thrust::device_vector<COMPUTE_TYPE> d_Ap1;
     thrust::device_vector<COMPUTE_TYPE> d_p2;
-    thrust::device_vector<COMPUTE_TYPE> d_c3;
-    thrust::device_vector<COMPUTE_TYPE> d_d2;
-    thrust::device_vector<COMPUTE_TYPE> d_d3;
  
     auto [P1, AP1, P2, C3, D2, D3] = taskflow.emplace( // create four tasks
         [&]()
@@ -189,26 +193,21 @@ thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> fglt(const d_csr &d_A)
     D3.succeed(C3);
  
     // print the execution plan
-    taskflow.dump(std::cout);
  
     executor.run(taskflow).wait();
- 
-    thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> return_vector(4);
-    return_vector.push_back(std::move(d_p1));
-    return_vector.push_back(std::move(d_p2));
-    return_vector.push_back(std::move(d_d3));
-    return_vector.push_back(std::move(d_c3));
- 
-    size_t result_checksum = 0;
-    for (auto &res : return_vector)
-    {
-        result_checksum += thrust::reduce(res.begin(), res.end());
-    }
-    std::cout << "Result hash: " << (result_checksum % 1000) << "\n";
+
+    if(!PRINT_HPC) {
+        taskflow.dump(std::cout);
+        size_t result_checksum = 0;
+        for(auto& res: return_vector) {
+            result_checksum += thrust::reduce(res.begin(), res.end());
+        }
+        std::cout << "Result hash: " << (result_checksum % 1000) << "\n";
+    } 
  
     return return_vector;
 
-    }
+}
 
 
 int main(int argc, char *argv[])
@@ -225,15 +224,27 @@ int main(int argc, char *argv[])
         const h_csr h_A = loadSymmFileToCsr(filename);
     );
 
-    std::cout << "A = \n";
-    printCSR(h_A);
+    if(!PRINT_HPC){
+        std::cout << "A = \n";
+        printCSR(h_A);
+    }
 
-    TIME_OP("Moving the matrix to the device",
+    thrust::device_vector<int> warm_up_cuda(100);
+
+    TIME_OP("HOST_TO_DEVICE",
         const d_csr d_A(h_A);
     );
 
-    TIME_OP("The whole fglt",
+    TIME_OP("FGLT",
         thrust::host_vector<thrust::device_vector<COMPUTE_TYPE>> h_fglt = fglt(d_A);
     );
 
+    TIME_OP("DEVICE_TO_HOST",
+        thrust::host_vector<thrust::host_vector<COMPUTE_TYPE>> h_fglt_host(4);
+        for(int i = 0; i < 4; i++) {
+            h_fglt_host[i] = h_fglt[i];
+        }
+    );
+
+    std::cout << std::endl;
 }
