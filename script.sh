@@ -1,9 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=SuperImportantJob
 #SBATCH --nodes=1
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
-#SBATCH --time=15:00
+#SBATCH --partition=batch
+#SBATCH --time=2:00
 
 module purge
 module load gcc
