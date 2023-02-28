@@ -7,12 +7,17 @@
 #include "common/fileio.hpp"
 
 
+#define PRINT_HPC 1
+
 #define TIME_OP(NAME, OP) \
       T_START = std::chrono::high_resolution_clock::now(); \
       OP; \
       T_END = std::chrono::high_resolution_clock::now(); \
-      printf("%s took %f ms\n", NAME,  (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0);
-      // std::cout << name << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(T_END-T_START).count() << " ms" << std::endl;W
+      if(PRINT_HPC) {\
+        if (std::string(NAME) == "HOST_TO_DEVICE" || std::string(NAME) == "FGLT" || std::string(NAME) == "DEVICE_TO_HOST")\
+            std::cout << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count() << '\t'; \
+      }\
+      else std::cout << NAME << " took " << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0 << " ms" << std::endl;
 
 
 
@@ -196,13 +201,13 @@ int main(int argc, char *argv[]) {
   }
 
   // Read mtx file
-  TIME_OP("Loading the file",
-    h_csr h_A = loadSymmFileToCsr(argv[1]);
-  )
+  h_csr h_A = loadSymmFileToCsr(argv[1]);
 
-  TIME_OP("The whole fglt",   
+  std::cout << "0\t";
+  TIME_OP("FGLT",   
     fglt(&h_A);
   );
+  std::cout << "0\t" << std::endl;
 
   return 0;
 }
