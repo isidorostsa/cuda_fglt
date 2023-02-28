@@ -299,7 +299,11 @@ thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, c
             &beta,
             v_out_desc,
             A.compute_type,
+#if CUSPARSE_VERSION >= 12000
             CUSPARSE_SPMV_ALG_DEFAULT,
+#else
+            CUSPARSE_SPMV_ALG1,
+#endif
             &bufferSize))
 
     thrust::device_vector<char> d_buffer(bufferSize);
@@ -314,7 +318,11 @@ thrust::device_vector<float> d_cusparse_csr::multiply(const d_cusparse_csr &A, c
             &beta,
             v_out_desc,
             A.compute_type,
+#if CUSPARSE_VERSION >= 12000
             CUSPARSE_SPMV_ALG_DEFAULT,
+#else
+            CUSPARSE_SPMV_ALG1,
+#endif
             static_cast<void *>(d_buffer.data().get())))
 
     cusparseDestroyDnVec(v_desc);
