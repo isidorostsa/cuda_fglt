@@ -9,7 +9,7 @@ PROGRAM_NAME := $(BIN_DIR)/fglt
 # Set the appropriate compile/link flags
 CFLAGS := 
 LFLAGS := 
-GENERAL_FLAGS := -std=c++14 --compiler-options -Wall -Xcompiler -fopenmp
+GENERAL_FLAGS := -std=c++14 --compiler-options -Wall
 
 BUILD_TYPE ?= release
 BUILD_ENV ?= container

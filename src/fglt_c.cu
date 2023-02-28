@@ -6,13 +6,17 @@
 #include "common/host_structs.hpp"
 #include "common/fileio.hpp"
 
+#define PRINT_HPC 1
+
 #define TIME_OP(NAME, OP) \
       T_START = std::chrono::high_resolution_clock::now(); \
       OP; \
       T_END = std::chrono::high_resolution_clock::now(); \
-      printf("%s took %f ms\n", NAME,  (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0);
-      // std::cout << name << " took " << std::chrono::duration_cast<std::chrono::milliseconds>(T_END-T_START).count() << " ms" << std::endl;W
-
+      if(PRINT_HPC) {\
+        if (std::string(NAME) == "HOST_TO_DEVICE" || std::string(NAME) == "FGLT" || std::string(NAME) == "DEVICE_TO_HOST")\
+            std::cout << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count() << '\t'; \
+      }\
+      else std::cout << NAME << " took " << (double)std::chrono::duration_cast<std::chrono::microseconds>(T_END-T_START).count()/1000.0 << " ms" << std::endl;
 
 __global__
 void kernel_spmv(int n_vertices, int* A_offsets, int* A_positions, int *x, int *y) {
@@ -117,24 +121,13 @@ void fglt(h_csr* h_A){
   // struct timespec T_START, T_END;
   std::chrono::high_resolution_clock::time_point T_START, T_END;
 
-  // Allocate device vectors
-  int *d_d0, *d_d1, *d_d2, *d_d3, *d_d4;
-  cudaMalloc(&d_d0, h_A->get_rows() * sizeof(int));
-  cudaMalloc(&d_d1, h_A->get_rows() * sizeof(int));
-  cudaMalloc(&d_d2, h_A->get_rows() * sizeof(int));
-  cudaMalloc(&d_d3, h_A->get_rows() * sizeof(int));
-  cudaMalloc(&d_d4, h_A->get_rows() * sizeof(int));
+  std::chrono::high_resolution_clock::time_point FGLT_START, FGLT_END;
 
-  // Allocate host vectors
-  int *h_d0, *h_d1, *h_d2, *h_d3, *h_d4;
-  h_d0 = (int*)calloc(h_A->get_rows(), sizeof(int));
-  h_d1 = (int*)calloc(h_A->get_rows(), sizeof(int));
-  h_d2 = (int*)calloc(h_A->get_rows(), sizeof(int));
-  h_d3 = (int*)calloc(h_A->get_rows(), sizeof(int));
-  h_d4 = (int*)calloc(h_A->get_rows(), sizeof(int));
- 
-  int* d_A_offsets, *d_A_positions;
-  TIME_OP("Moving the matrix to the device",
+  // Allocate device vectors
+  TIME_OP("HOST_TO_DEVICE",
+    // Allocate host vectors
+    int* d_A_offsets;
+    int *d_A_positions;
     // Send A to Device
     cudaMalloc(&d_A_offsets, (h_A->get_rows() + 1)* sizeof(int));
     cudaMalloc(&d_A_positions, h_A->get_nnz() * sizeof(int));
@@ -144,6 +137,18 @@ void fglt(h_csr* h_A){
 
 
   // Run calculations on device
+
+  FGLT_START = std::chrono::high_resolution_clock::now(); \
+
+  int *d_d0, *d_d1, *d_d2, *d_d3, *d_d4;
+  cudaMalloc(&d_d0, h_A->get_rows() * sizeof(int));
+  cudaMalloc(&d_d1, h_A->get_rows() * sizeof(int));
+  cudaMalloc(&d_d2, h_A->get_rows() * sizeof(int));
+  cudaMalloc(&d_d3, h_A->get_rows() * sizeof(int));
+  cudaMalloc(&d_d4, h_A->get_rows() * sizeof(int));
+
+
+
   int blockSize = 1024;
   int numBlocks = (h_A->get_rows() + blockSize - 1) / blockSize;
 
@@ -178,9 +183,22 @@ void fglt(h_csr* h_A){
   cudaDeviceSynchronize();
   );
 
+  FGLT_END = std::chrono::high_resolution_clock::now(); \
+    
+  if(PRINT_HPC) std::cout << (double)std::chrono::duration_cast<std::chrono::microseconds>(FGLT_END-FGLT_START).count() << '\t'; \
 
   // Transfer results from device to host
-  TIME_OP("Moving the results back to the host",
+  TIME_OP("DEVICE_TO_HOST",
+  int *h_d0;
+  int *h_d1;
+  int *h_d2;
+  int *h_d3;
+  int *h_d4;
+  h_d0 = (int*)calloc(h_A->get_rows(), sizeof(int));
+  h_d1 = (int*)calloc(h_A->get_rows(), sizeof(int));
+  h_d2 = (int*)calloc(h_A->get_rows(), sizeof(int));
+  h_d3 = (int*)calloc(h_A->get_rows(), sizeof(int));
+  h_d4 = (int*)calloc(h_A->get_rows(), sizeof(int));
   cudaMemcpy(h_d0, d_d0, (h_A->get_rows())*sizeof(int), cudaMemcpyDeviceToHost);
   cudaMemcpy(h_d1, d_d1, (h_A->get_rows())*sizeof(int), cudaMemcpyDeviceToHost);
   cudaMemcpy(h_d2, d_d2, (h_A->get_rows())*sizeof(int), cudaMemcpyDeviceToHost);
@@ -189,18 +207,6 @@ void fglt(h_csr* h_A){
   cudaDeviceSynchronize();
   );
   
-  // // Validate Result
-  // size_t s0=0, s1=0, s2=0, s3=0, s4=0;
-  // for(int i=0; i<h_A->get_rows(); i++){
-  //   s0 += h_d0[i];
-  //   s1 += h_d1[i];
-  //   s2 += h_d2[i];
-  //   s3 += h_d3[i];
-  //   s4 += h_d4[i];
-  // }
-  // printf("s0:%lu\ns1:%lu\ns2:%lu\ns3:%lu\ns4:%lu\n", s0, s1, s2, s3, s4);
-
-
   // Free device memory
   cudaFree(d_d0);
   cudaFree(d_d1);
@@ -209,13 +215,6 @@ void fglt(h_csr* h_A){
   cudaFree(d_d4);
   cudaFree(d_A_offsets);
   cudaFree(d_A_positions);
-
-  // Free host memory
-  free(h_d0);
-  free(h_d1);
-  free(h_d2);
-  free(h_d3);
-  free(h_d4);
 }
 
 
@@ -241,6 +240,8 @@ int main(int argc, char *argv[]) {
   TIME_OP("The whole fglt",   
     fglt(&h_A);
   );
+
+  std::cout << std::endl;
 
   return 0;
 }
