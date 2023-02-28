@@ -1,9 +1,6 @@
 #pragma once
 
 #include <thrust/host_vector.h>
-#include "cusparse_csr_wrapper.hpp"
-
-class d_cusparse_csr;
 
 struct h_coo {
     int n;
@@ -35,8 +32,6 @@ struct h_csr {
     const thrust::host_vector<int>& get_offsets() const;
     const thrust::host_vector<int>& get_positions() const;
     const thrust::host_vector<float>& get_values() const;
-
-    h_csr(const d_cusparse_csr &other);
 
     void resize(int rows, int cols, int nnz);
 

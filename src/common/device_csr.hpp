@@ -21,7 +21,7 @@ struct d_csr {
     d_csr(int rows, int cols, int nnz, thrust::device_vector<int>& offsets, thrust::device_vector<int>& positions, thrust::device_vector<COMPUTE_TYPE>& values);
     d_csr(int rows, int cols, int nnz, thrust::device_vector<int>&& offsets, thrust::device_vector<int>&& positions, thrust::device_vector<COMPUTE_TYPE>&& values);
     d_csr(d_csr &&other);
-    d_csr(const h_csr &_h_csr);
+    d_csr(const h_csr &_h_csr, bool copy_values=true);
 
     // getters and setters
     int get_rows() const;
