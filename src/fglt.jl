@@ -118,8 +118,6 @@ end
 
 # read arguments
 file_name = ARGS[1]
-file_name = "./datasets/s6.mtx"
-# check if file exists
 
 if !isfile(file_name)
     println("File does not exist")
