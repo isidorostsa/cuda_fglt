@@ -9,10 +9,8 @@ module purge
 module load gcc/10.2.0
 module load cuda
 module load julia/1.6.3
-make clean
-make
 
-echo "TASKFLOW_VERSION"
+echo "JULIA_VERSION"
 echo "___S12___"
 julia ./src/fglt.jl ../assets/s12.mtx
 julia ./src/fglt.jl ../assets/s12.mtx
