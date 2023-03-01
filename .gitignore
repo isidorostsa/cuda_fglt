@@ -16,3 +16,5 @@ src/grid_stride_test.cu
 src/read_write_bench.cu
 src/test.cu
 src/thrustBenchmarks.cu
+Project.toml
+Manifest.toml

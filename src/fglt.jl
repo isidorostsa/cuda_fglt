@@ -1,19 +1,15 @@
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+
+Pkg.add("MatrixMarket")
+Pkg.add("CUDA")
+Pkg.add("BenchmarkTools")
+
 using SparseArrays
 using MatrixMarket
 using CUDA
 using CUDA.CUSPARSE
-
-# Load the matrix
-A = mmread("../datasets/com-Youtube.mtx")
-# A = mmread("s6.mtx")
-
-d_A = CuSparseMatrixCSR{Int32}(A)
-
-n = size(A, 1)
-
-# CUSPARSE SPMV:
-
-# Create the handle
 
 function c3_kernel!(offsets, positions, c3)
 
@@ -120,4 +116,35 @@ function fglt(A::CuSparseMatrixCSR{Int32})
     return p1, d2, d3, c3
 end
 
-p1, d2, d3, c3 = fglt(d_A)
+# read arguments
+file_name = ARGS[1]
+file_name = "./datasets/s6.mtx"
+# check if file exists
+
+if !isfile(file_name)
+    println("File does not exist")
+    exit(1)
+end
+
+A = mmread(file_name)
+
+warm_up_cuda = CuArray{Int32}(undef, 10)
+
+# save time for d_A in a variable
+using BenchmarkTools
+
+CuSparseMatrixCSR{Int32}(A) # precompile
+HOST_TO_DEVICE = @elapsed (d_A = CuSparseMatrixCSR{Int32}(A))
+
+fglt(d_A) # precompile
+FGLT = @elapsed ((p1, d2, d3, c3) = fglt(d_A))
+
+h_p1 = Array(p1) # precompile
+DEVICE_TO_HOST = @elapsed (
+    h_p1 = Array(p1),
+    h_d2 = Array(d2),
+    h_d3 = Array(d3),
+    h_d4 = Array(c3)
+)
+
+println("$(HOST_TO_DEVICE*1e6)\t$(FGLT*1e6)\t$(DEVICE_TO_HOST*1e6)")
